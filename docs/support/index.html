@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>foodiet · 고객 지원</title>
+<meta name="description" content="foodiet 사용 중 궁금한 점, 오류, 계정 문제를 해결하는 공식 지원 페이지." />
+<link rel="stylesheet" href="../assets/style.css" />
+<style>
+  /* ── 지원 페이지 전용 스타일 ── */
+  .hero {
+    background: linear-gradient(135deg, #FFF4EC 0%, #F2F9EC 100%);
+    border: 1px solid #FFE4D1;
+    border-radius: 20px;
+    padding: 36px 32px;
+    margin-bottom: 40px;
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+  }
+  .hero-icon {
+    font-size: 48px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .hero-text h2 {
+    margin: 0 0 6px;
+    font-size: 22px;
+    font-weight: 700;
+    color: #221F1A;
+  }
+  .hero-text p {
+    margin: 0;
+    font-size: 15px;
+    color: #6B6454;
+    line-height: 1.6;
+  }
+  .hero-text a {
+    color: #CC5A31;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .hero-text a:hover { text-decoration: underline; }
+
+  /* 섹션 구분 */
+  .section-label {
+    display: inline-block;
+    background: #FF8A5B;
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+  }
+
+  /* FAQ 아이템 */
+  .faq-group {
+    margin-bottom: 40px;
+  }
+  .faq-group h3 {
+    font-size: 17px;
+    font-weight: 700;
+    color: #3E3A31;
+    margin: 0 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #F4EDE2;
+  }
+
+  details {
+    border: 1px solid #F4EDE2;
+    border-radius: 14px;
+    margin-bottom: 8px;
+    overflow: hidden;
+    background: #FFFDFA;
+    transition: border-color 0.15s;
+  }
+  details[open] {
+    border-color: #FFC9A8;
+  }
+  details summary {
+    list-style: none;
+    padding: 16px 20px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    color: #3E3A31;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::after {
+    content: "+";
+    font-size: 20px;
+    font-weight: 300;
+    color: #FF8A5B;
+    flex-shrink: 0;
+    line-height: 1;
+    transition: transform 0.2s;
+  }
+  details[open] summary::after {
+    transform: rotate(45deg);
+  }
+  .faq-body {
+    padding: 0 20px 18px;
+    font-size: 14.5px;
+    color: #6B6454;
+    line-height: 1.7;
+  }
+  .faq-body p { margin: 0 0 8px; }
+  .faq-body p:last-child { margin: 0; }
+  .faq-body ul {
+    margin: 6px 0;
+    padding-left: 20px;
+  }
+  .faq-body li {
+    margin-bottom: 5px;
+    font-size: 14.5px;
+    color: #6B6454;
+  }
+  .faq-body em {
+    font-style: normal;
+    background: #FFF4EC;
+    padding: 1px 5px;
+    border-radius: 5px;
+    color: #CC5A31;
+    font-size: 13.5px;
+  }
+  .faq-body .tip {
+    background: #F2F9EC;
+    border-left: 3px solid #7FB77E;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-top: 10px;
+    font-size: 14px;
+    color: #457A44;
+  }
+
+  /* 연락처 카드 */
+  .contact-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-top: 16px;
+  }
+  @media (max-width: 520px) {
+    .contact-grid { grid-template-columns: 1fr; }
+    .hero { flex-direction: column; gap: 12px; }
+  }
+  .contact-card {
+    border: 1px solid #F4EDE2;
+    border-radius: 16px;
+    padding: 20px;
+    background: #FFFDFA;
+  }
+  .contact-card .card-icon {
+    font-size: 28px;
+    margin-bottom: 10px;
+  }
+  .contact-card h4 {
+    margin: 0 0 4px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #3E3A31;
+  }
+  .contact-card p {
+    margin: 0;
+    font-size: 13.5px;
+    color: #6B6454;
+  }
+  .contact-card a {
+    color: #CC5A31;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .contact-card a:hover { text-decoration: underline; }
+
+  .badge {
+    display: inline-block;
+    background: #F2F9EC;
+    color: #5E9C5C;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 8px;
+    margin-top: 6px;
+  }
+
+  .divider {
+    height: 1px;
+    background: #F4EDE2;
+    margin: 40px 0;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- 헤더 -->
+  <header class="brand">
+    <span class="logo">🍓</span>
+    <div>
+      <h1>foodiet</h1>
+      <div class="tagline">고객 지원 · FAQ</div>
+    </div>
+  </header>
+
+  <span class="updated">최종 갱신: 2026-04-27</span>
+
+  <!-- 히어로: 빠른 연락 -->
+  <div class="hero">
+    <div class="hero-icon">💬</div>
+    <div class="hero-text">
+      <h2>무엇이든 물어봐!</h2>
+      <p>
+        버그 신고, 기능 제안, 계정 문제는 아래 이메일로 보내줘.<br />
+        <a href="mailto:jihunlim204@gmail.com?subject=%5Bfoodiet%5D%20문의">jihunlim204@gmail.com</a>
+        — 평균 응답 시간 <strong>1 영업일</strong> 이내.
+      </p>
+    </div>
+  </div>
+
+  <!-- ─── FAQ 섹션 ─── -->
+  <div class="section-label">FAQ</div>
+  <h2>자주 묻는 질문</h2>
+
+  <!-- 1. 식단 기록 -->
+  <div class="faq-group">
+    <h3>📸 식단 기록</h3>
+
+    <details>
+      <summary>사진을 찍었는데 분석이 계속 "분석중"이에요.</summary>
+      <div class="faq-body">
+        <p>AI 분석은 서버에 사진이 전달돼야 시작돼. 아래 순서로 확인해봐.</p>
+        <ul>
+          <li>Wi-Fi / LTE 연결 상태 확인. 오프라인이면 큐에 저장됐다가 온라인 복귀 후 자동 전송돼.</li>
+          <li>1–2분 기다려도 안 바뀌면 기록 상세 화면 → <em>수정</em> → 다시 저장으로 재시도해봐.</li>
+          <li>그래도 안 되면 앱을 완전히 껐다 다시 켜봐 (백그라운드 완전 종료).</li>
+        </ul>
+        <div class="tip">🌱 계속 문제가 생기면 스크린샷과 함께 이메일로 알려줘. 빠르게 확인할게!</div>
+      </div>
+    </details>
+
+    <details>
+      <summary>AI가 음식 이름을 잘못 맞혔어요.</summary>
+      <div class="faq-body">
+        <p>기록 상세 화면 우상단 메뉴 → <em>수정</em>에서 끼니·시간·공유 인원·메모를 직접 바꿀 수 있어.</p>
+        <p>더 정확한 분석을 위해 음식이 잘 보이도록 위에서 찍거나, 그릇 전체가 프레임에 들어오도록 해봐.</p>
+        <div class="tip">💡 품목 단위(개별 음식) 수정 기능은 다음 업데이트에 추가 예정이야!</div>
+      </div>
+    </details>
+
+    <details>
+      <summary>끼니(아침/점심/저녁)가 자동으로 잘못 분류됐어요.</summary>
+      <div class="faq-body">
+        <p>foodiet은 사진 촬영 시각과 이미지 내 시각 단서(조명, 플레이팅 등)를 함께 보고 끼니를 추정해.</p>
+        <p>잘못 분류된 경우 <em>수정</em>에서 끼니 항목을 직접 변경할 수 있어.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>여러 명이 함께 먹은 음식의 칼로리를 나누고 싶어요.</summary>
+      <div class="faq-body">
+        <p>기록 화면에서 <em>공유 인원</em>을 설정하면 돼. 예를 들어 2명이 나눠 먹었으면 인원 2로 설정하면 총 칼로리가 자동으로 반으로 나뉘어.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>과거 날짜에 기록을 추가하거나 수정할 수 있나요?</summary>
+      <div class="faq-body">
+        <p>히스토리 탭에서 날짜를 선택하면 해당 날의 기록을 확인하고 수정할 수 있어.</p>
+        <p>새 기록 추가 시에도 날짜를 변경해서 과거 날짜로 저장 가능해.</p>
+      </div>
+    </details>
+  </div>
+
+  <!-- 2. 체중 & 목표 -->
+  <div class="faq-group">
+    <h3>⚖️ 체중 & 목표</h3>
+
+    <details>
+      <summary>체중 그래프의 예측선(점선)은 어떻게 계산되나요?</summary>
+      <div class="faq-body">
+        <p>최근 14일간의 섭취 칼로리와 내 기초대사량(TDEE)을 비교해서, 지금 속도라면 목표 체중에 언제 도달할지를 추정해.</p>
+        <ul>
+          <li>🎯 <strong>On track</strong>: 목표 기간 내 달성 예상</li>
+          <li>⚠️ <strong>조금 빠듯</strong>: 약간의 조정이 필요한 상태</li>
+          <li>🔴 <strong>조정 필요</strong>: 현재 추이로는 목표 기간 초과 예상</li>
+        </ul>
+        <p>기록 데이터가 쌓일수록 예측이 더 정확해져!</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>목표 체중이나 목표 날짜를 바꾸고 싶어요.</summary>
+      <div class="faq-body">
+        <p>설정 탭 → <em>내 목표</em>에서 목표 체중·기간·활동량을 수정할 수 있어.</p>
+        <div class="tip">💡 변경 후 예측선이 자동으로 업데이트돼.</div>
+      </div>
+    </details>
+  </div>
+
+  <!-- 3. 푸디 코치 -->
+  <div class="faq-group">
+    <h3>🌸 푸디 코치</h3>
+
+    <details>
+      <summary>푸디 코치 메시지가 오늘 안 와요.</summary>
+      <div class="faq-body">
+        <p>푸디는 당일 기록이 있을 때 코치 메시지를 보내. 기록이 없는 날은 메시지가 생략돼.</p>
+        <ul>
+          <li>알림 설정이 켜져 있는지 확인: iOS 설정 → foodiet → 알림 허용.</li>
+          <li>앱을 열면 홈 화면에서 오늘의 코치 메시지를 바로 볼 수 있어.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details>
+      <summary>코치 메시지를 하루에 몇 번 받을 수 있나요?</summary>
+      <div class="faq-body">
+        <p>현재 버전에서는 일일 최대 5회까지 코치 메시지가 생성돼. 매 기록마다가 아니라 하루 섭취 흐름을 보고 적절한 타이밍에 보내줘.</p>
+      </div>
+    </details>
+  </div>
+
+  <!-- 4. 홈 위젯 -->
+  <div class="faq-group">
+    <h3>🔔 홈 위젯</h3>
+
+    <details>
+      <summary>홈 위젯이 업데이트가 안 돼요.</summary>
+      <div class="faq-body">
+        <p>iOS 위젯은 시스템이 주기적으로 새로고침해서 실시간이 아니야 (보통 1시간 주기).</p>
+        <ul>
+          <li>즉시 반영: 앱을 한 번 열었다 닫으면 위젯 데이터가 업데이트돼.</li>
+          <li>위젯이 아예 표시가 안 되면 홈 화면 > 위젯 편집에서 foodiet 위젯을 한 번 제거했다가 다시 추가해봐.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details>
+      <summary>위젯을 탭하면 카메라로 바로 이동하나요?</summary>
+      <div class="faq-body">
+        <p>맞아! 위젯을 탭하면 앱이 열리면서 카메라 화면으로 바로 이동해.</p>
+      </div>
+    </details>
+  </div>
+
+  <!-- 5. PT/트레이너 공유 -->
+  <div class="faq-group">
+    <h3>📤 PT / 트레이너 공유</h3>
+
+    <details>
+      <summary>트레이너에게 식단을 공유하는 방법이 뭐야?</summary>
+      <div class="faq-body">
+        <p>히스토리 탭에서 공유하고 싶은 날짜를 선택 → <em>하루 공유</em> 버튼을 탭하면 돼.</p>
+        <p>음식 사진과 해당 사진의 예상 칼로리(kcal)가 담긴 카드 이미지가 생성되고, 카카오톡·메시지·이메일 등으로 바로 공유할 수 있어.</p>
+        <div class="tip">🔒 공유 카드에는 음식 사진과 칼로리만 포함돼. 체중, 영양소 상세, 코치 메시지는 공유되지 않아.</div>
+      </div>
+    </details>
+
+    <details>
+      <summary>공유 링크가 있나요? 링크로 트레이너가 볼 수 있나요?</summary>
+      <div class="faq-body">
+        <p>현재 버전에서는 이미지 형태의 공유를 지원해. 링크 기반 공유(트레이너가 브라우저에서 바로 확인)는 v1.1 업데이트에서 추가될 예정이야!</p>
+      </div>
+    </details>
+  </div>
+
+  <!-- 6. 계정 & 로그인 -->
+  <div class="faq-group">
+    <h3>🔐 계정 & 로그인</h3>
+
+    <details>
+      <summary>Apple / Google / Kakao 로그인이 안 돼요.</summary>
+      <div class="faq-body">
+        <ul>
+          <li><strong>Apple 로그인</strong>: iOS 설정 → Apple ID → 로그인 및 보안에서 2단계 인증이 켜져 있는지 확인해.</li>
+          <li><strong>같은 이메일, 다른 제공자</strong>: 처음 가입할 때 사용한 제공자로만 로그인 가능해. 예를 들어 처음 Google로 가입했다면 Apple로 다시 가입하려고 하면 오류가 나.</li>
+          <li>해결이 안 되면 이메일 주소와 가입 시 사용한 제공자를 이메일로 알려줘.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details>
+      <summary>계정을 삭제하고 싶어요.</summary>
+      <div class="faq-body">
+        <p>앱 내 <em>설정 → 계정 삭제</em>를 통해 직접 삭제할 수 있어. 또는 이메일로 요청하면 처리해줄게.</p>
+        <p>삭제 요청 후 <strong>30일 이내</strong>에 모든 개인정보 및 기록이 완전히 삭제돼.</p>
+        <div class="tip">⚠️ 삭제 전 기록 백업(스크린샷 등)을 권장해. 한 번 삭제하면 복구가 불가능해.</div>
+      </div>
+    </details>
+
+    <details>
+      <summary>비밀번호를 잊어버렸어요.</summary>
+      <div class="faq-body">
+        <p>foodiet은 소셜 로그인(Apple / Google / Kakao)만 지원해. 별도 비밀번호가 없어.</p>
+        <p>로그인이 안 되면 각 소셜 계정의 비밀번호 재설정을 해당 앱/서비스에서 진행해줘.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>기기를 바꿨는데 기록이 사라졌어요.</summary>
+      <div class="faq-body">
+        <p>새 기기에서 <strong>기존과 동일한 계정으로 로그인</strong>하면 모든 기록이 자동으로 복원돼. 데이터는 서버에 안전하게 저장돼 있어.</p>
+      </div>
+    </details>
+  </div>
+
+  <!-- 7. 개인정보 & 보안 -->
+  <div class="faq-group">
+    <h3>🛡️ 개인정보 & 보안</h3>
+
+    <details>
+      <summary>내 식단 사진이 외부에 노출될 수 있나요?</summary>
+      <div class="faq-body">
+        <p>사진은 Supabase 비공개 Storage에만 저장돼. 고유한 서명된 URL 없이는 외부에서 직접 접근이 불가능해.</p>
+        <p>공유 카드를 생성하지 않는 한 사진은 나만 볼 수 있어.</p>
+        <div class="tip">자세한 데이터 처리 내용은 <a href="../privacy/">개인정보처리방침</a>에서 확인해.</div>
+      </div>
+    </details>
+
+    <details>
+      <summary>내 데이터가 AI 학습에 사용되나요?</summary>
+      <div class="faq-body">
+        <p>foodiet의 AI 분석은 OpenAI의 멀티모달 모델을 사용해. 사용자 사진은 분석 후 OpenAI에 전송되지만, OpenAI의 정책에 따라 API를 통해 전송된 데이터는 모델 학습에 사용되지 않아.</p>
+        <p>자세한 내용은 <a href="../privacy/">개인정보처리방침</a>을 참고해.</p>
+      </div>
+    </details>
+  </div>
+
+  <!-- 8. 광고 & 요금 -->
+  <div class="faq-group">
+    <h3>💳 광고 & 요금</h3>
+
+    <details>
+      <summary>광고가 거슬려요.</summary>
+      <div class="faq-body">
+        <p>현재 인사이트 탭에 네이티브 광고 1개가 포함돼 있어. 무료로 앱을 운영하기 위한 거야.</p>
+        <p>광고 없는 프리미엄 구독은 향후 업데이트에서 추가될 예정이야.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>foodiet은 무료인가요?</summary>
+      <div class="faq-body">
+        <p>기본 기능(사진 기록, 칼로리 분석, 체중 추적, 코치, 공유)은 모두 <strong>무료</strong>야.</p>
+        <p>향후 광고 제거, 추가 분석 기능 등의 프리미엄 플랜이 추가될 예정이야.</p>
+      </div>
+    </details>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- 연락처 섹션 -->
+  <div class="section-label">CONTACT</div>
+  <h2>직접 연락하기</h2>
+  <p style="color:#6B6454; font-size:15px; margin-bottom:0;">
+    FAQ에서 해결이 안 됐어? 아래로 문의해줘. 성심껏 답장할게 🌸
+  </p>
+
+  <div class="contact-grid">
+    <div class="contact-card">
+      <div class="card-icon">📧</div>
+      <h4>이메일 문의</h4>
+      <p>버그, 기능 제안, 계정 문제</p>
+      <a href="mailto:jihunlim204@gmail.com?subject=%5Bfoodiet%5D%20문의">jihunlim204@gmail.com</a>
+      <br /><span class="badge">⏱ 평균 1 영업일 이내 답변</span>
+    </div>
+    <div class="contact-card">
+      <div class="card-icon">👤</div>
+      <h4>개발자 정보</h4>
+      <p>개발·운영: Jihun Lim<br />개인 개발자 (인디 앱)</p>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- 앱 평점 요청 -->
+  <div class="callout">
+    foodiet이 마음에 들었다면 App Store 리뷰 한 줄 남겨줘. 개인 개발자에게 정말 큰 힘이 돼 🍓
+  </div>
+
+  <!-- 하단 네비게이션 -->
+  <div class="nav">
+    <a href="../">홈</a>
+    <a href="../privacy/">개인정보처리방침</a>
+    <a href="mailto:jihunlim204@gmail.com">이메일 문의</a>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>foodiet · 개인정보처리방침</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+<div class="wrap">
+  <header class="brand">
+    <span class="logo">🍓</span>
+    <div>
+      <h1>foodiet</h1>
+      <div class="tagline">개인정보처리방침</div>
+    </div>
+  </header>
+
+  <span class="updated">최종 갱신: 2026-04-23 · 버전 1.0</span>
+
+  <h2>1. 개요</h2>
+  <p>
+    foodiet (이하 "앱") 은 사용자의 식단 사진과 관련 데이터를 처리해
+    AI 분석·기록·공유 기능을 제공해. 본 방침은 앱이 어떤 정보를
+    수집하고 어떻게 쓰는지, 보관 기간은 얼마나 되고 어떤 권리가 있는지를
+    설명해. 개인정보보호법과 EU GDPR 의 "정보 주체의 권리" 기준을 따라.
+  </p>
+  <p>
+    개인정보처리책임자: Jihun Lim ·
+    <a href="mailto:jihunlim204@gmail.com">jihunlim204@gmail.com</a>
+  </p>
+
+  <h2>2. 수집하는 정보</h2>
+  <h3>2.1 사용자가 직접 제공하는 정보</h3>
+  <ul>
+    <li><strong>계정 식별 정보</strong> — 이메일, 닉네임, 로그인 제공자
+        (Apple / Google / Kakao). 계정 생성 및 로그인 목적.</li>
+    <li><strong>프로필 설정</strong> — 일일 목표 칼로리, 성별, 나이대.
+        AI 코치의 개인화된 피드백 생성 목적.</li>
+    <li><strong>식사 사진</strong> — 카메라 또는 갤러리에서 선택한 이미지.
+        AI 분석을 위해 서버에 업로드되며, 비공개 Storage 버킷에 저장돼.
+        사용자 본인만 접근 가능한 서명된 URL 로만 조회돼.</li>
+    <li><strong>기록 메타데이터</strong> — 촬영 시각, 끼니 라벨, 공유 인원,
+        메모. 사용자가 남긴 내용.</li>
+  </ul>
+
+  <h3>2.2 자동으로 수집되는 정보</h3>
+  <ul>
+    <li><strong>기기 정보</strong> — OS 버전, 기기 모델, 앱 버전.
+        앱 품질 개선 및 호환성 점검 목적.</li>
+    <li><strong>사용 이벤트</strong> — 화면 전환, 기능 사용 횟수 등 비식별
+        이벤트. Firebase Analytics 를 통해 처리.</li>
+    <li><strong>충돌/성능 로그</strong> — 예외 스택트레이스 등.
+        Firebase Crashlytics 로 처리.</li>
+    <li><strong>광고 식별자 (IDFA)</strong> — iOS 14.5+ 사용자가
+        App Tracking Transparency (ATT) 에서 명시적으로 동의한
+        경우에만 수집. Google AdMob 의 개인화 광고에 사용. 거부 시
+        비개인화 광고만 표시되며 앱 기능은 그대로 동작해.</li>
+    <li><strong>푸시 토큰</strong> — Firebase Cloud Messaging 토큰.
+        알림 발송 외 용도로 사용하지 않아.</li>
+  </ul>
+
+  <h2>3. 이용 목적</h2>
+  <ul>
+    <li>핵심 서비스 제공 — 사진 분석, 칼로리/영양 추정, 일자별 기록.</li>
+    <li>개인화된 코치 피드백 생성.</li>
+    <li>앱 품질 개선, 버그 재현, 충돌 원인 분석.</li>
+    <li>광고 노출 (Google AdMob 네이티브 단위).</li>
+    <li>보안 · 부정 사용 방지.</li>
+    <li>법적 의무 이행 (수사 기관의 적법한 요청 등).</li>
+  </ul>
+
+  <h2>4. 제3자 제공 및 처리 위탁</h2>
+  <p>다음 서비스 제공자를 통해 데이터를 처리해. 각 사는 자체 개인정보처리방침을 준수해.</p>
+  <table>
+    <tr><th>제공자</th><th>목적</th><th>위치</th></tr>
+    <tr><td>Supabase (인증 · DB · Storage)</td><td>계정, 기록, 이미지 저장</td><td>AWS ap-northeast-2 (서울)</td></tr>
+    <tr><td>Firebase (Google)</td><td>푸시 · 분석 · 충돌 로그</td><td>글로벌 (미국 등)</td></tr>
+    <tr><td>Google AdMob</td><td>인사이트 탭 광고 노출</td><td>글로벌</td></tr>
+    <tr><td>Apple / Google / Kakao</td><td>OAuth 로그인</td><td>각 사 정책 준수</td></tr>
+    <tr><td>AI 분석 제공자</td><td>사진의 음식 식별 · 칼로리 추정</td><td>글로벌 (미국)</td></tr>
+  </table>
+
+  <h2>5. 보관 기간</h2>
+  <ul>
+    <li>계정 활성 기간 동안 — 기록 · 사진 · 프로필.</li>
+    <li>계정 삭제 요청 시 — 요청 후 30일 내 완전 삭제 (백업 포함).</li>
+    <li>법정 의무에 따른 보존 기간은 예외적으로 적용될 수 있어.</li>
+  </ul>
+
+  <h2>6. 사용자의 권리</h2>
+  <ul>
+    <li>개인정보 열람·정정 — 앱 내 "내정보 > 프로필 수정" 에서 즉시.</li>
+    <li>계정 및 전체 데이터 삭제 —
+        앱 내 "설정 > 계정 삭제" 또는
+        <a href="mailto:jihunlim204@gmail.com">이메일 요청</a>.
+        요청 후 최대 30일 내 처리 완료 이메일 회신.</li>
+    <li>광고 개인화 철회 — 앱 내 ATT 재요청 또는
+        iOS 설정 > foodiet > "앱 추적 요청 허용" 토글.</li>
+    <li>푸시 알림 해제 — iOS 설정 > 알림 > foodiet.</li>
+  </ul>
+
+  <h2>7. 만 14세 미만 사용자</h2>
+  <p>
+    foodiet 은 만 14세 미만 이용자를 대상으로 하지 않아. 만 14세 미만 임이
+    확인되면 즉시 계정과 관련 데이터를 삭제해.
+  </p>
+
+  <h2>8. 보안</h2>
+  <ul>
+    <li>모든 통신은 TLS 1.2+ 로 암호화.</li>
+    <li>사진은 Supabase Storage 비공개 버킷에 저장, 서명된 URL 로만 접근 (기본 만료 1시간).</li>
+    <li>DB 는 Row Level Security 로 사용자별 격리.</li>
+  </ul>
+
+  <h2>9. 개정 안내</h2>
+  <p>
+    본 방침이 개정될 경우 앱 내 공지 및 본 페이지 상단의 "최종 갱신"
+    일자를 변경해. 중대한 변경 시에는 푸시 알림으로도 안내해.
+  </p>
+
+  <h2>10. 문의</h2>
+  <p>
+    이메일: <a href="mailto:jihunlim204@gmail.com">jihunlim204@gmail.com</a>
+  </p>
+
+  <div class="nav">
+    <a href="../">홈</a>
+    <a href="../support/">지원</a>
+  </div>
+</div>
+</body>
+</html>
