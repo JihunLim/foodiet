@@ -20,12 +20,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 
 import '../../config/env.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/profile_provider.dart';
 import '../../providers/supabase_provider.dart';
 import '../../services/kcal_calc.dart';
+import '../../services/nickname_service.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/primary_button.dart';
 
@@ -152,29 +154,66 @@ class _OnboardingSurveyPageState
 
     try {
       final client = ref.read(supabaseClientProvider);
-      await client
-          .from('profiles')
-          .upsert({
-            'user_id': user.id,
-            'nickname': _nick.text.trim(),
-            'locale': Env.defaultLocale,
-            'unit_energy': Env.defaultEnergyUnit,
-            'unit_mass': Env.defaultMassUnit,
-            'height_cm': h,
-            'weight_kg': w,
-            'goal_weight_kg': goalW,
-            'goal_deadline':
-                _deadline?.toIso8601String().substring(0, 10),
-            'activity_level': _activity,
-            // 식이제한은 코어 기능에 필요 없어 온보딩에서 묻지 않음.
-            // 마이 → 프로필 편집에서도 더는 수집하지 않음. 빈 array 로 시작.
-            'diet_restrictions': const <String>[],
-            'daily_kcal_target': result.dailyKcalTarget,
-            // 성별·생년월일은 온보딩에서 묻지 않음 — NULL 로 시작.
-            'birth_date': null,
-            'sex': null,
-          }, onConflict: 'user_id')
-          .timeout(const Duration(seconds: 15));
+      final svc = ref.read(nicknameServiceProvider);
+      final desiredNick = _nick.text.trim();
+
+      // 닉네임은 전체 서비스 unique. 사용자가 입력한 닉네임을 형식·중복
+      // 양쪽 다 검증해야 한다. 형식은 클라이언트에서 즉시 잡고 (서버 RPC
+      // 호출 줄임), 중복은 RPC 한 번 + insert 의 unique 제약이 최종 가드.
+      final fmt = svc.validateFormat(desiredNick);
+      if (!fmt.isValid) {
+        setState(() {
+          _submitting = false;
+          _error = fmt.message ?? '닉네임 형식이 올바르지 않아요.';
+        });
+        return;
+      }
+      // 빠른 사전 체크 — 다른 사용자가 같은 닉네임을 막 쓰는 시점이 있다면
+      // upsert 가 unique 제약 위반(23505)을 던질 수 있으므로 그때도 잡는다.
+      final available = await svc.isAvailable(desiredNick).timeout(
+        const Duration(seconds: 8),
+        onTimeout: () => true, // 네트워크 느리면 일단 시도. 서버가 막아주면 됨.
+      );
+      if (!available) {
+        setState(() {
+          _submitting = false;
+          _error = '이미 사용 중인 닉네임이에요. 다른 걸로 시도해보자.';
+        });
+        return;
+      }
+
+      try {
+        await client
+            .from('profiles')
+            .upsert({
+              'user_id': user.id,
+              'nickname': desiredNick,
+              'locale': Env.defaultLocale,
+              'unit_energy': Env.defaultEnergyUnit,
+              'unit_mass': Env.defaultMassUnit,
+              'height_cm': h,
+              'weight_kg': w,
+              'goal_weight_kg': goalW,
+              'goal_deadline':
+                  _deadline?.toIso8601String().substring(0, 10),
+              'activity_level': _activity,
+              'diet_restrictions': const <String>[],
+              'daily_kcal_target': result.dailyKcalTarget,
+              'birth_date': null,
+              'sex': null,
+            }, onConflict: 'user_id')
+            .timeout(const Duration(seconds: 15));
+      } on PostgrestException catch (e) {
+        // 23505 = unique_violation. 누군가 동시에 같은 닉네임을 쓴 race condition.
+        if (e.code == '23505' || e.message.contains('nickname')) {
+          setState(() {
+            _submitting = false;
+            _error = '닉네임이 방금 사용됐어요. 다시 시도해주세요.';
+          });
+          return;
+        }
+        rethrow;
+      }
 
       // profileProvider 재조회 — 라우터 가드가 재평가될 때
       // stale(null) 을 읽고 다시 /onboarding/survey 로 튕기는 걸 막기 위해

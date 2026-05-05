@@ -460,9 +460,9 @@ class _HomeShellState extends ConsumerState<HomeShell>
                 onTap: _go,
               ),
               _Tab(
-                icon: Icons.person_outline,
-                active: Icons.person,
-                label: '마이',
+                icon: Icons.groups_outlined,
+                active: Icons.groups_rounded,
+                label: '커뮤니티',
                 index: 3,
                 shell: widget.navigationShell,
                 onTap: _go,

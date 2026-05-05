@@ -8,7 +8,9 @@
 ///   - `shared_with_count` 로 1인분 환산 kcal 사용.
 ///   - 탭하면 `/entry/:id` 상세 페이지로 이동 (수정·삭제·공유 인원).
 ///
-/// Phase G-3 — AppBar 우측 공유 버튼. 오늘 식단을 이미지 한 장으로 PT 친구에게.
+/// 커뮤니티 도입 (community_기획서.md):
+///   - 기존 우상단 공유(IOS Share) 버튼은 **마이(프로필) 아이콘** 으로 교체.
+///     공유 기능은 커뮤니티 탭의 그룹 공유 흐름으로 이동.
 library;
 
 import 'package:flutter/material.dart';
@@ -19,7 +21,6 @@ import 'package:intl/intl.dart';
 import '../../providers/entries_provider.dart';
 import '../../providers/home_widget_sync_provider.dart';
 import '../../providers/profile_provider.dart';
-import '../../services/daily_share_service.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/ai_coach_card.dart';
 import '../../widgets/foodie_bubble.dart';
@@ -33,37 +34,6 @@ class HomeTodayPage extends ConsumerStatefulWidget {
 }
 
 class _HomeTodayPageState extends ConsumerState<HomeTodayPage> {
-  bool _sharing = false;
-
-  Future<void> _onShare() async {
-    if (_sharing) return;
-    setState(() => _sharing = true);
-    try {
-      await ref.read(dailyShareServiceProvider).shareToday(context);
-    } on DailyShareException catch (e) {
-      if (!mounted) return;
-      _showSnack(e.message);
-    } catch (e) {
-      if (!mounted) return;
-      _showSnack('공유 이미지를 만드는 데 실패했어요.');
-    } finally {
-      if (mounted) setState(() => _sharing = false);
-    }
-  }
-
-  void _showSnack(String msg) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(msg),
-          duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 80),
-        ),
-      );
-  }
-
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(profileProvider).valueOrNull;
@@ -96,13 +66,8 @@ class _HomeTodayPageState extends ConsumerState<HomeTodayPage> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: FoodietShape.sp8),
-            child: _ShareButton(
-              enabled: hasDoneEntry && !_sharing,
-              loading: _sharing,
-              onTap: _onShare,
-              disabledReason: entries.isEmpty
-                  ? '공유할 식사 기록이 없어요'
-                  : '분석이 아직 진행 중이에요',
+            child: _ProfileButton(
+              onTap: () => context.push('/profile'),
             ),
           ),
         ],
@@ -575,43 +540,28 @@ class _TimelineRow extends StatelessWidget {
 }
 
 /// AppBar 우상단 공유 버튼. 완료된 기록이 하나라도 있어야 활성화.
-class _ShareButton extends StatelessWidget {
-  const _ShareButton({
-    required this.enabled,
-    required this.loading,
-    required this.onTap,
-    required this.disabledReason,
-  });
-  final bool enabled;
-  final bool loading;
+/// 홈 AppBar 우측 — 마이(프로필) 진입 아이콘.
+/// (기존 PT 공유 버튼 자리. 공유는 커뮤니티 탭으로 이동.)
+class _ProfileButton extends StatelessWidget {
+  const _ProfileButton({required this.onTap});
   final VoidCallback onTap;
-  final String disabledReason;
 
   @override
   Widget build(BuildContext context) {
-    final color = enabled ? FoodietColors.coral500 : FoodietColors.warm500;
     return Tooltip(
-      message: enabled ? 'PT 친구에게 공유' : disabledReason,
+      message: '마이',
       child: Material(
         color: Colors.transparent,
         shape: const CircleBorder(),
         child: InkWell(
           customBorder: const CircleBorder(),
-          onTap: enabled ? onTap : null,
-          child: SizedBox(
+          onTap: onTap,
+          child: const SizedBox(
             width: 44,
             height: 44,
             child: Center(
-              child: loading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.2,
-                        color: FoodietColors.coral500,
-                      ),
-                    )
-                  : Icon(Icons.ios_share_rounded, color: color, size: 22),
+              child: Icon(Icons.person_outline,
+                  color: FoodietColors.warm700, size: 22),
             ),
           ),
         ),

@@ -54,6 +54,11 @@ class ProfilePage extends ConsumerWidget {
             ),
             const SizedBox(height: FoodietShape.sp24),
             _MenuItem(
+              icon: Icons.badge_outlined,
+              label: '닉네임 변경',
+              onTap: () => context.push('/profile/nickname'),
+            ),
+            _MenuItem(
               icon: Icons.flag_outlined,
               label: '프로필 · 목표 · 기한',
               onTap: () => context.push('/profile/edit'),
