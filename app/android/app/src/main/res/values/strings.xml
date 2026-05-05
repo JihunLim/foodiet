@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="fd_widget_quick_log_desc">한 장 찍기 — 카메라 바로 열기</string>
+    <string name="fd_widget_remaining_desc">오늘의 남은 칼로리와 탄·단·지</string>
+    <string name="fd_widget_coach_desc">푸디의 한마디</string>
+</resources>

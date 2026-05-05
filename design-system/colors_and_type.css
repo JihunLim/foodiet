@@ -1,0 +1,269 @@
+/* ============================================================
+   Foodiet — Colors & Typography
+   봄 느낌의 따뜻한 다이어트 관리 앱
+   ============================================================ */
+
+/* ---------- Fonts ---------- */
+@font-face {
+  font-family: 'Gmarket Sans';
+  src: url('fonts/GmarketSansLight.woff') format('woff');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Gmarket Sans';
+  src: url('fonts/GmarketSansMedium.woff') format('woff');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Gmarket Sans';
+  src: url('fonts/GmarketSansBold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* ============================================================
+     COLOR — Brand (봄의 따뜻한 코랄 × 연두)
+     ============================================================ */
+  --coral-50:  #FFF4EC;   /* 배경 틴트 */
+  --coral-100: #FFE4D1;
+  --coral-200: #FFC9A8;
+  --coral-300: #FFB38A;   /* 서브 포인트 */
+  --coral-400: #FF9A6B;
+  --coral-500: #FF8A5B;   /* ★ PRIMARY — 메인 코랄 */
+  --coral-600: #EE7042;
+  --coral-700: #C9582F;
+
+  --leaf-50:  #F2F9EC;    /* 연두 틴트 */
+  --leaf-100: #E0F1CE;
+  --leaf-200: #C8E6AC;
+  --leaf-300: #A9D582;
+  --leaf-400: #8CC461;
+  --leaf-500: #7FB77E;    /* ★ SECONDARY — 새싹 그린 */
+  --leaf-600: #5E9C5C;
+  --leaf-700: #457A44;
+
+  /* Seasonal accent — 딸기·나물·쑥 */
+  --berry-500:  #F06A7A;   /* 딸기 */
+  --mugwort-500:#6B8E5C;   /* 쑥 */
+  --butter-500: #F7D36A;   /* 버터/계란 노랑 */
+  --sky-500:    #9BC6E3;   /* 봄 하늘 */
+
+  /* ============================================================
+     COLOR — Neutrals (크림-웜 톤)
+     ============================================================ */
+  --cream-00: #FFFDFA;   /* 바닥 배경 */
+  --cream-50: #FBF6EF;   /* 카드/서페이스 */
+  --cream-100:#F4EDE2;   /* hairline 대체 */
+  --warm-200: #E6DDCF;   /* border */
+  --warm-300: #C9BFAE;
+  --warm-400: #958B7A;   /* muted text */
+  --warm-500: #6B6454;   /* body light */
+  --warm-700: #3E3A31;   /* heading */
+  --warm-900: #221F1A;   /* darkest ink */
+
+  /* ============================================================
+     COLOR — Semantic
+     ============================================================ */
+  --bg:           var(--cream-00);
+  --surface:      var(--cream-50);
+  --surface-alt:  var(--coral-50);
+  --border:       var(--warm-200);
+  --hairline:     var(--cream-100);
+
+  --fg:           var(--warm-900);
+  --fg-1:         var(--warm-700);
+  --fg-2:         var(--warm-500);
+  --fg-muted:     var(--warm-400);
+  --fg-inverse:   var(--cream-00);
+
+  --primary:      var(--coral-500);
+  --primary-hover:var(--coral-600);
+  --primary-soft: var(--coral-100);
+  --on-primary:   #FFFFFF;
+
+  --secondary:    var(--leaf-500);
+  --secondary-soft: var(--leaf-100);
+
+  /* Status (다이어트 맥락 — 칼로리 경고 등) */
+  --success: var(--leaf-500);
+  --success-soft: var(--leaf-100);
+  --warning: #F2A93B;
+  --warning-soft: #FFF0D6;
+  --danger:  #E5574E;
+  --danger-soft: #FDE4E1;
+  --info:    var(--sky-500);
+
+  /* 식사 분류 전용 색상 (아침·점심·저녁·간식) */
+  --meal-breakfast: #F7D36A;   /* 버터 옐로 — 아침 */
+  --meal-lunch:     #FF8A5B;   /* 코랄 — 점심 */
+  --meal-dinner:    #8B6FB3;   /* 라벤더 — 저녁 */
+  --meal-snack:     #7FB77E;   /* 그린 — 간식 */
+
+  /* ============================================================
+     RADIUS (중간 둥글기 12-16 중심)
+     ============================================================ */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;    /* ★ default card */
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-pill: 999px;
+
+  /* ============================================================
+     SHADOW (부드러운 웜톤 섀도)
+     ============================================================ */
+  --shadow-xs: 0 1px 2px rgba(58, 38, 20, 0.05);
+  --shadow-sm: 0 2px 6px rgba(58, 38, 20, 0.06), 0 1px 2px rgba(58, 38, 20, 0.04);
+  --shadow-md: 0 6px 18px rgba(58, 38, 20, 0.08), 0 2px 6px rgba(58, 38, 20, 0.05);
+  --shadow-lg: 0 14px 32px rgba(58, 38, 20, 0.12), 0 4px 10px rgba(58, 38, 20, 0.06);
+  --shadow-coral: 0 8px 22px rgba(255, 138, 91, 0.28);
+  --shadow-leaf:  0 8px 22px rgba(127, 183, 126, 0.24);
+
+  /* ============================================================
+     SPACING (4px base)
+     ============================================================ */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+
+  /* ============================================================
+     GRADIENTS — 파스텔 봄 그라데이션
+     ============================================================ */
+  --grad-spring:   linear-gradient(135deg, #FFD6BD 0%, #FFE8CF 45%, #E6F2D3 100%);
+  --grad-sunrise:  linear-gradient(140deg, #FFB38A 0%, #FF8A5B 100%);
+  --grad-sprout:   linear-gradient(140deg, #B5DB94 0%, #7FB77E 100%);
+  --grad-peach:    linear-gradient(180deg, #FFF4EC 0%, #FFE4D1 100%);
+  --grad-bloom:    linear-gradient(135deg, #FFC9A8 0%, #F8C8DC 55%, #C8E6AC 100%);
+
+  /* ============================================================
+     TYPOGRAPHY — Base
+     ============================================================ */
+  --font-sans: 'Gmarket Sans', 'Pretendard', -apple-system, BlinkMacSystemFont,
+               'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  --font-display: 'Gmarket Sans', sans-serif;
+  --font-mono: 'SF Mono', ui-monospace, Menlo, monospace;
+
+  --weight-light: 300;
+  --weight-medium: 500;
+  --weight-bold: 700;
+
+  /* Type scale (mobile-first, iOS) */
+  --text-xs:   12px;
+  --text-sm:   13px;
+  --text-base: 15px;
+  --text-md:   16px;
+  --text-lg:   18px;
+  --text-xl:   20px;
+  --text-2xl:  24px;
+  --text-3xl:  28px;
+  --text-4xl:  34px;
+  --text-5xl:  42px;
+
+  /* Line heights */
+  --lh-tight: 1.2;
+  --lh-snug:  1.35;
+  --lh-base:  1.5;
+  --lh-relaxed: 1.7;
+
+  /* Letter spacing — Gmarket Sans는 약간 좁혀줘야 예뻐짐 */
+  --ls-tight:  -0.02em;
+  --ls-normal: -0.01em;
+  --ls-wide:   0.02em;
+}
+
+/* ============================================================
+   SEMANTIC TYPE — 바로 쓰는 클래스/태그 스타일
+   ============================================================ */
+html, body {
+  font-family: var(--font-sans);
+  color: var(--fg);
+  background: var(--bg);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--ls-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.display, .h-display {
+  font-family: var(--font-display);
+  font-size: var(--text-5xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-tight);
+  color: var(--fg);
+}
+.h1 {
+  font-size: var(--text-4xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-tight);
+  color: var(--fg);
+}
+.h2 {
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--lh-snug);
+  letter-spacing: var(--ls-tight);
+  color: var(--fg);
+}
+.h3 {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+}
+.h4 {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-medium);
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+}
+.title {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-medium);
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+}
+.body {
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  line-height: var(--lh-base);
+  color: var(--fg-1);
+}
+.body-sm {
+  font-size: var(--text-sm);
+  line-height: var(--lh-base);
+  color: var(--fg-2);
+}
+.caption {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--fg-muted);
+  letter-spacing: var(--ls-wide);
+}
+.number-large {
+  font-family: var(--font-display);
+  font-size: var(--text-5xl);
+  font-weight: var(--weight-bold);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-feature-settings: 'tnum' 1;
+}
+.label-chip {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--ls-wide);
+}

@@ -1,0 +1,45 @@
+{
+  "@@locale": "ko",
+
+  "appName": "foodiet",
+  "homeGreeting": "안녕, {name}야 👋",
+  "@homeGreeting": {
+    "description": "홈 화면 인사말 (§7.9)",
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "homeEmptyToday": "아직 기록이 없네! 첫 사진 찍어보자",
+  "ctaCapturePhoto": "사진 찍고 기록 시작",
+
+  "mealSlotBreakfast": "아침",
+  "mealSlotLunch": "점심",
+  "mealSlotDinner": "저녁",
+  "mealSlotLateNight": "야식",
+
+  "eatingTypeMeal": "식사",
+  "eatingTypeSnack": "간식",
+  "eatingTypeBeverage": "음료",
+
+  "coachLabel": "푸디의 한마디",
+  "kcalUnit": "kcal",
+  "kcalRemaining": "{value}kcal 남았어!",
+  "@kcalRemaining": {
+    "placeholders": {
+      "value": { "type": "int" }
+    }
+  },
+
+  "shareHeaderWeeklyAvg": "주간 평균 {value}kcal",
+  "@shareHeaderWeeklyAvg": {
+    "placeholders": {
+      "value": { "type": "int" }
+    }
+  },
+  "shareDayTotal": "합계: {value}kcal",
+  "@shareDayTotal": {
+    "placeholders": {
+      "value": { "type": "int" }
+    }
+  }
+}

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  푸디의 한마디 위젯 — 기획안 §4.4.
+  전체 탭 시 홈 탭으로 딥링크. 최소 4x2 셀.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/fd_coach_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/fd_widget_bg"
+    android:padding="14dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+        <TextView
+            android:id="@+id/fd_c_emoji"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🍓"
+            android:textSize="22sp" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="푸디의 한마디"
+            android:textColor="@color/fd_coral500"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:paddingStart="8dp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/fd_c_headline"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="오늘도 한 장씩 기록해볼까?"
+        android:textColor="@color/fd_warm900"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:layout_marginTop="8dp"
+        android:maxLines="2"
+        android:ellipsize="end" />
+
+    <TextView
+        android:id="@+id/fd_c_tip"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="첫 사진 한 장으로 푸디의 조언을 받아봐."
+        android:textColor="@color/fd_warm500"
+        android:textSize="12sp"
+        android:layout_marginTop="4dp"
+        android:maxLines="3"
+        android:ellipsize="end" />
+</LinearLayout>

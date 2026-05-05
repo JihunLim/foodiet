@@ -1,0 +1,11 @@
+-- entries 를 REPLICA IDENTITY FULL 로 전환.
+--
+-- 0003_realtime_entries 에서 publication 에 추가했지만 REPLICA IDENTITY 가
+-- 기본값(DEFAULT = primary key only)이라 Supabase Realtime 이 UPDATE 이벤트의
+-- RLS / row-filter (user_id eq X) 를 평가할 때 oldRecord 에 user_id 가 없어
+-- 이벤트가 조용히 드롭된다. → 클라이언트가 'pending' → 'done' 전환을 못 받아
+-- 사용자가 수동 새로고침해야 한다.
+--
+-- FULL 로 바꾸면 oldRecord 에 모든 컬럼이 실려 user_id 필터가 정상 동작.
+-- 비용: WAL 사이즈 약간 증가. entries 는 트래픽이 크지 않아 무시 가능.
+alter table public.entries replica identity full;

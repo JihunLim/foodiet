@@ -1,0 +1,18 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body{margin:0;padding:20px;background:var(--cream-00);}
+  .row{display:flex;gap:10px;flex-wrap:wrap;}
+  .chip{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:14px;min-width:170px;background:var(--cream-50);border:1px solid var(--border);}
+  .dot{width:24px;height:24px;border-radius:8px;flex-shrink:0;}
+  .lbl{font-size:13px;font-weight:700;color:var(--fg-1);}
+  .mt{font-size:11px;color:var(--fg-muted);font-family:var(--font-mono);}
+</style></head>
+<body>
+<div class="row">
+  <div class="chip"><div class="dot" style="background:#7FB77E;"></div><div><div class="lbl">Success</div><div class="mt">목표 달성</div></div></div>
+  <div class="chip"><div class="dot" style="background:#F2A93B;"></div><div><div class="lbl">Warning</div><div class="mt">칼로리 주의</div></div></div>
+  <div class="chip"><div class="dot" style="background:#E5574E;"></div><div><div class="lbl">Danger</div><div class="mt">섭취량 초과</div></div></div>
+  <div class="chip"><div class="dot" style="background:#9BC6E3;"></div><div><div class="lbl">Info</div><div class="mt">AI 조언</div></div></div>
+</div>
+</body></html>

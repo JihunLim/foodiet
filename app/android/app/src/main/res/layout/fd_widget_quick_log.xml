@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  빠른 기록 위젯 — 전체 영역이 카메라 딥링크(foodiet://widget/camera) 로 연결.
+  최소 2x2 셀. 카메라 앱을 열지 않고 바로 촬영 화면으로.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/fd_quick_log_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/fd_widget_bg"
+    android:padding="14dp"
+    android:gravity="center">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🍓"
+        android:textSize="32sp" />
+
+    <TextView
+        android:id="@+id/fd_ql_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="한 장 찍기"
+        android:textColor="@color/fd_warm900"
+        android:textSize="15sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/fd_ql_sub"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="오늘 0장 기록됨"
+        android:textColor="@color/fd_warm500"
+        android:textSize="11sp"
+        android:layout_marginTop="2dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="📷 촬영"
+        android:textColor="@android:color/white"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="8dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/fd_widget_cta" />
+</LinearLayout>

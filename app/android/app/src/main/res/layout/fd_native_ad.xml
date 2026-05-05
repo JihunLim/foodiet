@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  AdMob 네이티브 고급형 광고 레이아웃 — 인사이트 탭 삽입용.
+  디자인 토큰: design-system/colors_and_type.css 의 cream-50 / coral-500 / warm-*.
+  policy: "광고" 라벨 + headline + CTA 버튼 필수.
+-->
+<com.google.android.gms.ads.nativead.NativeAdView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/fd_native_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/fd_widget_bg"
+    android:padding="14dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/fd_ad_attribution"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="광고"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:textColor="@color/fd_coral500"
+            android:background="@drawable/fd_ad_badge"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="1dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="10dp">
+
+            <!-- AdMob policy: native advanced 는 MediaView 필수. 아이콘 이미지는
+                 MediaContent 가 자동 렌더. 작은 56×56 박스로 좌측 배치. -->
+            <com.google.android.gms.ads.nativead.MediaView
+                android:id="@+id/fd_ad_media"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:background="@drawable/fd_ad_icon_bg" />
+
+            <!-- iconView 는 숨김 placeholder — SDK 가 참조만 하도록 0dp 로 유지. -->
+            <ImageView
+                android:id="@+id/fd_ad_icon"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:visibility="invisible" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="10dp">
+
+                <TextView
+                    android:id="@+id/fd_ad_headline"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/fd_warm900"
+                    android:maxLines="2"
+                    android:ellipsize="end" />
+
+                <TextView
+                    android:id="@+id/fd_ad_body"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"
+                    android:textColor="@color/fd_warm500"
+                    android:maxLines="2"
+                    android:ellipsize="end"
+                    android:layout_marginTop="2dp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="10dp">
+
+            <TextView
+                android:id="@+id/fd_ad_advertiser"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="11sp"
+                android:textColor="@color/fd_warm700"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <Button
+                android:id="@+id/fd_ad_cta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/white"
+                android:background="@drawable/fd_widget_cta"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="8dp"
+                android:minHeight="0dp"
+                android:minWidth="0dp"
+                android:stateListAnimator="@null" />
+        </LinearLayout>
+    </LinearLayout>
+</com.google.android.gms.ads.nativead.NativeAdView>

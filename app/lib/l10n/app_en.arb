@@ -1,0 +1,45 @@
+{
+  "@@locale": "en",
+
+  "appName": "foodiet",
+  "homeGreeting": "Hi, {name} 👋",
+  "@homeGreeting": {
+    "description": "Home greeting (§7.9)",
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "homeEmptyToday": "No entries yet — snap your first meal!",
+  "ctaCapturePhoto": "Snap a photo to log",
+
+  "mealSlotBreakfast": "Breakfast",
+  "mealSlotLunch": "Lunch",
+  "mealSlotDinner": "Dinner",
+  "mealSlotLateNight": "Late night",
+
+  "eatingTypeMeal": "Meal",
+  "eatingTypeSnack": "Snack",
+  "eatingTypeBeverage": "Beverage",
+
+  "coachLabel": "Foodie says",
+  "kcalUnit": "kcal",
+  "kcalRemaining": "{value}kcal to go!",
+  "@kcalRemaining": {
+    "placeholders": {
+      "value": { "type": "int" }
+    }
+  },
+
+  "shareHeaderWeeklyAvg": "Weekly avg {value}kcal",
+  "@shareHeaderWeeklyAvg": {
+    "placeholders": {
+      "value": { "type": "int" }
+    }
+  },
+  "shareDayTotal": "Total: {value}kcal",
+  "@shareDayTotal": {
+    "placeholders": {
+      "value": { "type": "int" }
+    }
+  }
+}

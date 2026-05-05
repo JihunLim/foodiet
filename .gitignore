@@ -1,0 +1,53 @@
+# macOS
+.DS_Store
+
+# Claude Code worktrees / sessions
+.claude/
+
+# Big binary handoff files
+*.zip
+
+# Flutter / Dart (project-level safety net)
+app/.dart_tool/
+app/.packages
+app/build/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/pubspec.lock
+app/.idea/
+app/.vscode/
+app/*.iml
+
+# Secrets
+app/.env
+app/.env.local
+app/.env.*.local
+
+# iOS / Android build artifacts
+app/ios/Pods/
+app/ios/.symlinks/
+app/ios/Flutter/Flutter.framework
+app/ios/Flutter/Flutter.podspec
+app/ios/Runner.xcworkspace/xcuserdata/
+app/ios/Runner.xcodeproj/xcuserdata/
+app/ios/Runner.xcodeproj/project.xcworkspace/xcuserdata/
+app/android/.gradle/
+app/android/local.properties
+app/android/app/debug/
+app/android/app/release/
+app/android/app/profile/
+app/android/key.properties
+app/android/**/*.jks
+app/android/**/*.keystore
+
+# Supabase CLI
+app/supabase/.temp/
+app/supabase/.branches/
+supabase/.temp/
+supabase/.branches/
+
+# Firebase
+app/google-services.json
+app/GoogleService-Info.plist
+app/ios/Runner/GoogleService-Info.plist
+app/android/app/google-services.json

@@ -1,0 +1,28 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Secrets — .env 는 커밋하지 않음 (§8.1)
+.env
+.env.local
+.env.*.local
+
+# Supabase CLI
+supabase/.temp/
+supabase/.branches/
+
+# macOS/iOS
+.DS_Store
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec

@@ -1,0 +1,111 @@
+name: foodiet
+description: "foodiet — 사진 한 장으로 기록되는 AI 다이어트 파트너."
+publish_to: 'none'
+version: 1.0.0+8
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+  flutter: '>=3.19.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # Backend
+  supabase_flutter: ^2.5.6          # Auth + Postgres + Storage + Realtime 클라이언트
+  flutter_dotenv: ^5.1.0            # .env 로딩 (publishable 키 등)
+
+  # State management (§18.1 #12)
+  flutter_riverpod: ^2.5.1          # Supabase Realtime 스트림과 결합
+
+  # Firebase / FCM (§18.1 #11 — Project: foodiet-4f861)
+  firebase_core: ^3.0.0
+  firebase_messaging: ^15.0.0       # 푸시 (APNs는 FCM 브리지)
+
+  # OAuth — §5.1 / §18.1 #10
+  # 각 SDK 가 네이티브 로그인 흐름을 띄우고, 받은 id_token 을 Supabase 에 넘겨
+  # signInWithIdToken() 으로 세션을 만든다.
+  sign_in_with_apple: ^6.1.4        # iOS 심사 기준상 네이티브 필수
+  google_sign_in: ^6.2.2            # GoogleService-Info.plist / google-services.json 필요
+  kakao_flutter_sdk_user: ^1.9.6    # Native App Key 필요, 한국 로케일 한정 버튼 노출
+  kakao_flutter_sdk_common: ^1.9.6  # KakaoSdk.init() 호출용 (main.dart)
+  crypto: ^3.0.3                    # Apple 로그인 nonce SHA256
+
+  # Utilities
+  intl: ^0.20.2                     # 로케일/단위 포맷 (§8.1 i18n) — Flutter 3.41 SDK 핀에 맞춤
+  image_picker: ^1.1.2              # 원탭 사진 기록 (§4.1)
+  image: ^4.2.0                     # 1600px 긴변 리사이즈 (§8.2)
+  flutter_image_compress: ^2.3.0    # HEIC→JPEG fallback + q80 재인코딩 (§18.1 #13)
+  uuid: ^4.4.0                      # entry_id 생성
+  path_provider: ^2.1.3             # 오프라인 큐 파일 경로 (§8.4)
+  shared_preferences: ^2.2.3        # 로컬 설정/오프라인 큐 메타 (§8.4)
+  go_router: ^14.1.4                # 라우팅
+
+  cupertino_icons: ^1.0.8
+  share_plus: ^13.0.0
+
+  # 홈스크린 위젯 (§4.1 빠른 기록 · §4.5 남은 칼로리 · §4.4 푸디 조언).
+  # iOS WidgetKit + Android AppWidget 를 하나의 Dart API 로 추상화.
+  home_widget: ^0.6.0
+
+  # AdMob 네이티브 고급형 광고 (인사이트 탭 삽입).
+  # App ID 는 네이티브 Info.plist / AndroidManifest 에 등록.
+  # Ad Unit 은 Dart 상수 `FoodietAdUnits` 에서 참조.
+  google_mobile_ads: ^5.1.0
+
+  # 시스템 권한 요청 (카메라 / 사진 / 알림). 온보딩 마지막 단계에서 사용.
+  permission_handler: ^11.3.1
+
+  # iOS 14.5+ App Tracking Transparency. 광고 개인화를 위해 IDFA 접근을
+  # 요청한다. Info.plist 의 NSUserTrackingUsageDescription 필수.
+  app_tracking_transparency: ^2.0.6
+
+  # 끼니 리마인더 (아침/점심/저녁) — 사용자가 정한 시각에 기기에서 직접 발화.
+  # FCM 서버 cron 과 별개로, 디바이스 로컬에서 매일 반복 알림.
+  flutter_local_notifications: ^21.0.0
+  timezone: ^0.11.0                 # zonedSchedule 에 필요 (TZDateTime)
+  url_launcher: ^6.3.2
+
+dependency_overrides:
+  # Flutter 3.41 + path_provider 2.1.3 조합에서 path_provider_foundation 2.6.0 이
+  # objective_c 네이티브 asset 을 끌어오는데 현재 툴체인에서 framework wrapper 가
+  # 생성되지 않아 "native_assets ... objective_c not found" 에러가 난다.
+  # 2.3.2 까지는 objective_c 를 쓰지 않아 그대로 빌드된다.
+  path_provider_foundation: 2.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.3   # 앱 아이콘 자동 생성
+
+# 앱 아이콘 — `dart run flutter_launcher_icons` 로 재생성.
+# 마스터 1024×1024 PNG 는 tool/build_app_icon.py 가 생성한다.
+flutter_launcher_icons:
+  ios: true
+  android: false                    # 안드 아이콘은 추후
+  image_path: "assets/icon/foodiet-icon.png"
+  remove_alpha_ios: true            # iOS 는 alpha 금지 (App Store 거부)
+
+flutter:
+  uses-material-design: true
+  generate: true                    # flutter gen-l10n (ARB → Dart)
+
+  assets:
+    # .env 는 gitignore. 첫 실행 전에 `cp .env.example .env` 필요.
+    # 빌드 안정성을 위해 .env.example 을 fallback 으로 함께 로드한다 (env.dart 참고).
+    - .env.example
+    - assets/illust/
+    - assets/icon/
+
+  fonts:
+    - family: GmarketSans
+      fonts:
+        - asset: assets/fonts/GmarketSansLight.woff
+          weight: 300
+        - asset: assets/fonts/GmarketSansMedium.woff
+          weight: 500
+        - asset: assets/fonts/GmarketSansBold.woff
+          weight: 700

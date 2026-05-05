@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Foodiet · iOS UI Kit</title>
+<link rel="stylesheet" href="../../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:#F4EDE2;min-height:100vh;font-family:'Gmarket Sans',sans-serif;}
+  .stage{min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;gap:24px;flex-wrap:wrap;}
+  .col{display:flex;flex-direction:column;align-items:center;gap:14px;}
+  .label{font-size:12px;color:#6B6454;font-weight:700;letter-spacing:0.02em;}
+  .controls{position:fixed;top:16px;left:16px;background:#fff;border-radius:14px;padding:6px;display:flex;gap:4px;box-shadow:0 4px 12px rgba(0,0,0,0.08);z-index:100;}
+  .controls button{font-family:'Gmarket Sans',sans-serif;border:none;background:transparent;padding:8px 14px;font-size:12px;font-weight:700;border-radius:10px;color:#6B6454;cursor:pointer;}
+  .controls button.active{background:#FF8A5B;color:#fff;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="Components.jsx"></script>
+<script type="text/babel" src="Screens.jsx"></script>
+
+<script type="text/babel">
+const {useState} = React;
+
+function App() {
+  const [screen, setScreen] = useState(localStorage.getItem('foodiet_screen') || 'home');
+  const [tab, setTab] = useState('home');
+  const [camera, setCamera] = useState(false);
+
+  const set = (s) => {
+    setScreen(s);
+    localStorage.setItem('foodiet_screen', s);
+  };
+
+  const screens = [
+    {k:'home', l:'홈'},
+    {k:'camera', l:'카메라'},
+    {k:'weight', l:'몸무게'},
+    {k:'fridge', l:'냉장고 AI'},
+    {k:'onboard', l:'온보딩'},
+  ];
+
+  const renderScreen = (k) => {
+    if (k === 'home') return (
+      <IOSDevice width={390} height={820}>
+        <div style={{paddingTop:110}}>
+          <HomeScreen onOpenCamera={() => setCamera(true)} onOpenMeal={() => {}}/>
+        </div>
+        {camera && <CameraScreen onClose={() => setCamera(false)} onAnalyzed={() => setCamera(false)}/>}
+        <div style={{position:'absolute', bottom:0, left:0, right:0}}>
+          <TabBar active={tab} onChange={setTab} onFab={() => setCamera(true)}/>
+        </div>
+      </IOSDevice>
+    );
+    if (k === 'camera') return (
+      <IOSDevice width={390} height={820}>
+        <CameraScreen onClose={() => {}} onAnalyzed={() => {}}/>
+      </IOSDevice>
+    );
+    if (k === 'weight') return (
+      <IOSDevice width={390} height={820} title="몸무게">
+        <WeightScreen/>
+        <div style={{position:'absolute', bottom:0, left:0, right:0}}>
+          <TabBar active="chart" onChange={()=>{}} onFab={() => setCamera(true)}/>
+        </div>
+      </IOSDevice>
+    );
+    if (k === 'fridge') return (
+      <IOSDevice width={390} height={820} title="냉장고 AI">
+        <FridgeScreen/>
+      </IOSDevice>
+    );
+    if (k === 'onboard') return (
+      <IOSDevice width={390} height={820}>
+        <div style={{paddingTop:60, height:'calc(100% - 60px)'}}>
+          <OnboardingScreen onDone={() => set('home')}/>
+        </div>
+      </IOSDevice>
+    );
+  };
+
+  return (
+    <>
+      <div className="controls">
+        {screens.map(s => (
+          <button key={s.k} className={screen===s.k?'active':''} onClick={() => set(s.k)}>{s.l}</button>
+        ))}
+      </div>
+      <div className="stage">
+        <div className="col">
+          <div className="label">{screens.find(s=>s.k===screen)?.l}</div>
+          {renderScreen(screen)}
+        </div>
+      </div>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  foodiet 홈스크린 위젯용 컬러 토큰.
+  기획안 §7.3 - design-system/colors_and_type.css 의 대표 색만 추려 복제.
+  CSS/Dart 토큰이 바뀌면 여기도 수동 동기화.
+-->
+<resources>
+    <color name="fd_cream00">#FFFDFA</color>
+    <color name="fd_cream50">#FBF6EF</color>
+    <color name="fd_cream100">#F4EDE2</color>
+    <color name="fd_coral100">#FFE4D1</color>
+    <color name="fd_coral500">#FF8A5B</color>
+    <color name="fd_coral600">#EE7042</color>
+    <color name="fd_leaf500">#7FB77E</color>
+    <color name="fd_warm500">#6B6454</color>
+    <color name="fd_warm700">#3E3A31</color>
+    <color name="fd_warm900">#221F1A</color>
+    <color name="fd_meal_breakfast">#F7D36A</color>
+    <color name="fd_meal_dinner">#8B6FB3</color>
+</resources>

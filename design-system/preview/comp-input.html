@@ -1,0 +1,24 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body{margin:0;padding:20px;background:var(--cream-00);display:flex;flex-direction:column;gap:12px;}
+  .field{display:flex;flex-direction:column;gap:6px;}
+  label{font-size:12px;font-weight:700;color:var(--fg-2);letter-spacing:0.02em;}
+  input{font-family:var(--font-sans);font-size:15px;font-weight:500;padding:14px 16px;border-radius:14px;border:1.5px solid var(--border);background:var(--cream-50);color:var(--fg);outline:none;transition:all .15s;}
+  input:focus{border-color:var(--coral-500);background:#fff;box-shadow:0 0 0 4px rgba(255,138,91,0.12);}
+  input.err{border-color:var(--danger);background:#FDE4E1;}
+  .hint{font-size:12px;color:var(--fg-muted);}
+  .err-hint{color:var(--danger);}
+</style></head>
+<body>
+  <div class="field">
+    <label>목표 몸무게 (kg)</label>
+    <input value="58.0" style="border-color:var(--coral-500);box-shadow:0 0 0 4px rgba(255,138,91,0.12);background:#fff;"/>
+    <div class="hint">현재 62.4kg · 약 4.4kg 감량</div>
+  </div>
+  <div class="field">
+    <label>이메일</label>
+    <input class="err" value="foodie@"/>
+    <div class="hint err-hint">올바른 이메일 형식으로 입력해줘</div>
+  </div>
+</body></html>

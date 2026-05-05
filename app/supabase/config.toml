@@ -1,0 +1,7 @@
+project_id = "foodiet"
+
+[functions.analyze-entry]
+verify_jwt = false
+
+[functions.home-coach]
+verify_jwt = false
