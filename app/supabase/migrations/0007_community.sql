@@ -196,8 +196,11 @@ create table if not exists public.sanctions (
   expires_at   timestamptz,
   created_at   timestamptz default now()
 );
-create index if not exists sanctions_user_active_idx
-  on public.sanctions (user_id) where expires_at is null or expires_at > now();
+-- 활성 제재 조회용 인덱스. now() 는 volatile 이라 partial index predicate 에 못 쓰므로
+-- 단순 (user_id, expires_at) 복합 인덱스로 대체. 쿼리는 expires_at is null or expires_at > now()
+-- 형태로 하면 인덱스가 자연스럽게 사용됨.
+create index if not exists sanctions_user_expires_idx
+  on public.sanctions (user_id, expires_at);
 
 -- ╔══════════════════════════════════════════════════════════════╗
 -- ║ RLS 활성화                                                   ║
