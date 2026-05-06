@@ -14,7 +14,9 @@
 ///
 /// 환경 변수:
 ///   - `DEVELOPER_USER_ID` : 신고 알림을 받을 개발자 계정의 auth.users.id
-///   - `INTERNAL_PUSH_TOKEN` : webhook 검증 (선택)
+///   - `REPORT_WEBHOOK_TOKEN` : webhook 검증 (선택). Supabase Database Webhook 의
+///     `x-foodiet-internal` 헤더와 일치해야 한다. 기존 `INTERNAL_PUSH_TOKEN` 과
+///     keyspace 를 분리해 cron / send-push 회로를 건드리지 않는다.
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
@@ -75,7 +77,7 @@ const TARGET_LABEL: Record<string, string> = {
 };
 
 function _checkInternalAuth(req: Request): boolean {
-  const expected = Deno.env.get('INTERNAL_PUSH_TOKEN');
+  const expected = Deno.env.get('REPORT_WEBHOOK_TOKEN');
   if (!expected) return true;
   const got = req.headers.get('x-foodiet-internal') ?? '';
   return got === expected;
