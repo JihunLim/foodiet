@@ -307,8 +307,12 @@ final photoUploadServiceProvider = Provider<PhotoUploadService>((ref) {
 
 /// path → signed URL 메모이즈 (1시간).
 /// FutureProvider.family 로 각 path 당 한 번만 서명.
+///
+/// keepAlive — 화면 전환 시에도 URL 캐시를 메모리에 유지해 재서명 라운드트립
+/// 을 없앤다 (URL 자체 만료는 1시간이라 안전 마진 충분).
 final signedUrlProvider =
     FutureProvider.autoDispose.family<String, String>((ref, path) async {
+  ref.keepAlive();
   final svc = ref.watch(photoUploadServiceProvider);
   return svc.signedUrl(path);
 });

@@ -49,6 +49,25 @@ final groupMembersProvider = FutureProvider.autoDispose
 });
 
 /// 그룹 피드.
+/// 내 모든 그룹의 피드를 시간순 통합 — "전체" 탭 용.
+/// 그룹 N 개 → N 번 fetch, 클라이언트에서 머지.
+/// 한 그룹의 fetch 가 실패해도 나머지는 표시 — 부분 실패 허용.
+final allMyFeedsProvider =
+    FutureProvider.autoDispose<List<CommunityPost>>((ref) async {
+  ref.watch(_communityRealtimeProvider);
+  final groups = await ref.watch(myGroupsProvider.future);
+  if (groups.isEmpty) return const [];
+  final svc = ref.watch(communityServiceProvider);
+  final perGroup = await Future.wait(
+    groups.map((g) => svc
+        .fetchFeed(g.id, limit: 50)
+        .catchError((Object _) => const <CommunityPost>[])),
+  );
+  final all = perGroup.expand((p) => p).toList()
+    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  return all;
+});
+
 final groupFeedProvider = FutureProvider.autoDispose
     .family<List<CommunityPost>, String>((ref, groupId) async {
   ref.watch(_communityRealtimeProvider);
@@ -73,6 +92,19 @@ final postReactionsProvider = FutureProvider.autoDispose
 });
 
 /// 포스트의 조언 스레드.
+/// postId → 그 post 의 모든 tip 의 좋아요 카운트/내 상태.
+typedef TipLikeMap = Map<String, ({int count, bool mine})>;
+
+final postTipLikesProvider = FutureProvider.autoDispose
+    .family<TipLikeMap, String>((ref, postId) async {
+  ref.watch(_communityRealtimeProvider);
+  final svc = ref.watch(communityServiceProvider);
+  // 이 post 의 tips 를 먼저 받아서 좋아요 일괄 조회.
+  final tips = await ref.watch(postTipsProvider(postId).future);
+  final ids = tips.map((t) => t.id).toList();
+  return svc.fetchTipLikesForTips(ids);
+});
+
 final postTipsProvider = FutureProvider.autoDispose
     .family<List<PostTip>, String>((ref, postId) async {
   ref.watch(_communityRealtimeProvider);
@@ -101,6 +133,9 @@ final AutoDisposeProvider<void> _communityRealtimeProvider =
 
   void invalidateAll(PostgresChangePayload _) {
     ref.invalidate(myGroupsProvider);
+    ref.invalidate(allMyFeedsProvider);
+    ref.invalidate(myInvitesProvider);
+    ref.invalidate(myInvitesCountProvider);
     // family 들은 keepAlive 가 아니라 autoDispose 이므로 사용 중인 것만 살아있다.
     // invalidate 호출은 그런 경우에만 효과.
   }
@@ -127,7 +162,19 @@ final AutoDisposeProvider<void> _communityRealtimeProvider =
       .onPostgresChanges(
         event: PostgresChangeEvent.all,
         schema: 'public',
+        table: 'tip_likes',
+        callback: invalidateAll,
+      )
+      .onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
         table: 'group_members',
+        callback: invalidateAll,
+      )
+      .onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'group_invites',
         callback: invalidateAll,
       )
       .subscribe();
@@ -135,6 +182,39 @@ final AutoDisposeProvider<void> _communityRealtimeProvider =
   ref.onDispose(() {
     unawaited(client.removeChannel(ch));
   });
+});
+
+/// 내가 받은 pending 초대 — 마이 탭 / 초대장 페이지 공용.
+final myInvitesProvider =
+    FutureProvider.autoDispose<List<GroupInvite>>((ref) async {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return const [];
+  ref.watch(_communityRealtimeProvider);
+  final svc = ref.watch(communityServiceProvider);
+  return svc.fetchMyPendingInvites();
+});
+
+/// 마이 탭 배지용 카운트 — 가벼운 SELECT count.
+final myInvitesCountProvider =
+    FutureProvider.autoDispose<int>((ref) async {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return 0;
+  ref.watch(_communityRealtimeProvider);
+  final svc = ref.watch(communityServiceProvider);
+  return svc.countMyPendingInvites();
+});
+
+/// 사용자 디렉토리 (닉네임순 + prefix 검색). 초대 화면에서 사용.
+/// family key 는 (검색어, 제외할 그룹 id) — 같은 인자면 같은 캐시.
+typedef UserDirectoryArgs = ({String query, String? excludeGroupId});
+
+final userDirectoryProvider = FutureProvider.autoDispose
+    .family<List<UserHandle>, UserDirectoryArgs>((ref, args) async {
+  final svc = ref.watch(communityServiceProvider);
+  return svc.listUsersByNickname(
+    query: args.query,
+    excludeGroupId: args.excludeGroupId,
+  );
 });
 
 /// 호출자 편의: 그룹/포스트/반응 캐시를 일괄 invalidate.
@@ -149,5 +229,6 @@ void invalidateCommunityFor(WidgetRef ref, {String? groupId, String? postId}) {
     ref.invalidate(postDetailProvider(postId));
     ref.invalidate(postReactionsProvider(postId));
     ref.invalidate(postTipsProvider(postId));
+    ref.invalidate(postTipLikesProvider(postId));
   }
 }

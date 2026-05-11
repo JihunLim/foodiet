@@ -96,11 +96,18 @@ class _CommunityGroupCreatePageState
         title: Text('새 그룹 만들기',
             style: FoodietText.h3.copyWith(color: FoodietColors.warm900)),
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(FoodietShape.sp20),
-          child: ListView(
-            children: [
+      // 빈 영역 탭하면 키보드 닫힘 (iOS 기본 동작이 없어서 명시).
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(FoodietShape.sp20),
+            child: ListView(
+              // 스크롤 시작하면 키보드도 함께 내려간다.
+              keyboardDismissBehavior:
+                  ScrollViewKeyboardDismissBehavior.onDrag,
+              children: [
               const _Label('이모지'),
               Wrap(
                 spacing: 8,
@@ -128,7 +135,9 @@ class _CommunityGroupCreatePageState
               TextField(
                 controller: _desc,
                 maxLength: 200,
-                maxLines: 2,
+                minLines: 1,
+                maxLines: 3,
+                textAlignVertical: TextAlignVertical.top,
                 decoration: const InputDecoration(
                   hintText: '예: 평일 점심 인증하는 모임',
                 ),
@@ -181,6 +190,7 @@ class _CommunityGroupCreatePageState
                 onPressed: _canSave ? _save : null,
               ),
             ],
+            ),
           ),
         ),
       ),

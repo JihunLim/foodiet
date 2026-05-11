@@ -178,6 +178,11 @@ Deno.serve(async (req: Request) => {
 
   const reasonLabel = REASON_LABEL[r.reason] ?? r.reason;
   const targetLabel = TARGET_LABEL[r.target_type] ?? r.target_type;
+  // detail 에 클라이언트가 보낸 한국어 카테고리(인스타식 9가지)가 들어 있으면
+  // 그걸 우선 표시 — DB enum 4개로 뭉친 reason 보다 정확함.
+  const reasonForBody = r.detail && r.detail.trim().length > 0
+    ? `${r.detail.trim()} (${reasonLabel})`
+    : reasonLabel;
   const preview = _truncate(target.preview, 60);
 
   // 개발자 디바이스 토큰 조회.
@@ -194,7 +199,7 @@ Deno.serve(async (req: Request) => {
 
   const title = `🚨 신고 접수: ${targetLabel} / ${ownerNick}`;
   const body =
-    `${reasonLabel} · 신고자 ${reporterNick}` +
+    `${reasonForBody} · 신고자 ${reporterNick}` +
     (preview ? ` · "${preview}"` : '');
 
   let sent = 0;

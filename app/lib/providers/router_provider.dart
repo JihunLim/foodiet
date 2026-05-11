@@ -13,8 +13,10 @@ import '../features/calendar/calendar_page.dart';
 import '../features/camera/camera_page.dart';
 import '../features/community/community_group_create_page.dart';
 import '../features/community/community_group_detail_page.dart';
+import '../features/community/community_group_invite_page.dart';
 import '../features/community/community_group_join_page.dart';
 import '../features/community/community_group_members_page.dart';
+import '../features/community/community_my_invites_page.dart';
 import '../features/community/community_group_settings_page.dart';
 import '../features/community/community_page.dart';
 import '../features/community/community_post_detail_page.dart';
@@ -143,6 +145,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/community/group/:id/members',
         builder: (_, state) =>
             CommunityGroupMembersPage(groupId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/community/group/:id/invite',
+        builder: (_, state) =>
+            CommunityGroupInvitePage(groupId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/profile/invites',
+        builder: (_, __) => const CommunityMyInvitesPage(),
       ),
       GoRoute(
         path: '/community/group/:gid/post/:pid',

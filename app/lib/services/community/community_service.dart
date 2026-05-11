@@ -465,6 +465,66 @@ class CommunityService {
     return inserted['id'] as String;
   }
 
+  // ── 댓글 좋아요 ───────────────────────────────────────────────
+
+  Future<void> likeTip(String tipId) async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return;
+    try {
+      await _client.from('tip_likes').insert({
+        'tip_id': tipId,
+        'user_id': uid,
+      });
+    } on PostgrestException catch (e) {
+      // 23505 = unique_violation → 이미 좋아요 누른 상태.
+      if (e.code == '23505') return;
+      rethrow;
+    }
+  }
+
+  Future<void> unlikeTip(String tipId) async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return;
+    await _client
+        .from('tip_likes')
+        .delete()
+        .eq('tip_id', tipId)
+        .eq('user_id', uid);
+  }
+
+  /// 한 포스트의 모든 tip_id 에 대한 좋아요. tip_id → (count, mine).
+  Future<Map<String, ({int count, bool mine})>> fetchTipLikesForTips(
+      List<String> tipIds) async {
+    if (tipIds.isEmpty) return const {};
+    final uid = _client.auth.currentUser?.id;
+    final rows = await _client
+        .from('tip_likes')
+        .select('tip_id, user_id')
+        .inFilter('tip_id', tipIds);
+    final out = <String, ({int count, bool mine})>{};
+    for (final id in tipIds) {
+      out[id] = (count: 0, mine: false);
+    }
+    for (final r in (rows as List)) {
+      final m = Map<String, dynamic>.from(r as Map);
+      final tipId = m['tip_id'] as String;
+      final userId = m['user_id'] as String;
+      final prev = out[tipId] ?? (count: 0, mine: false);
+      out[tipId] = (
+        count: prev.count + 1,
+        mine: prev.mine || userId == uid,
+      );
+    }
+    return out;
+  }
+
+  Future<void> updateTip({required String tipId, required String body}) async {
+    await _client
+        .from('post_tips')
+        .update({'body': body})
+        .eq('id', tipId);
+  }
+
   Future<void> softDeleteTip(String tipId) async {
     await _client
         .from('post_tips')
@@ -521,6 +581,124 @@ class CommunityService {
         .select('blocked_id')
         .eq('blocker_id', _client.auth.currentUser!.id);
     return (rows as List).map((r) => r['blocked_id'] as String).toList();
+  }
+
+  // ── 사용자 디렉토리 ──────────────────────────────────────────
+
+  /// 닉네임순 사용자 목록 / prefix 검색.
+  /// [excludeGroupId] 가 주어지면 해당 그룹의 활성 멤버는 결과에서 빠진다.
+  Future<List<UserHandle>> listUsersByNickname({
+    String query = '',
+    String? excludeGroupId,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final rows = await _client.rpc<dynamic>(
+      'list_users_by_nickname',
+      params: {
+        'p_query': query,
+        'p_exclude_group_id': excludeGroupId,
+        'p_limit': limit,
+        'p_offset': offset,
+      },
+    );
+    return (rows as List)
+        .map((r) => UserHandle.fromJson(Map<String, dynamic>.from(r as Map)))
+        .toList();
+  }
+
+  // ── 그룹 초대 ────────────────────────────────────────────────
+
+  Future<String> sendGroupInvite({
+    required String groupId,
+    required String inviteeUserId,
+  }) async {
+    final result = await _client.rpc<dynamic>(
+      'send_group_invite',
+      params: {'p_group_id': groupId, 'p_invitee_id': inviteeUserId},
+    );
+    return result as String;
+  }
+
+  /// 수락 성공 시 가입한 그룹 id 반환.
+  Future<String> acceptGroupInvite(String inviteId) async {
+    final result = await _client.rpc<dynamic>(
+      'accept_group_invite',
+      params: {'p_invite_id': inviteId},
+    );
+    return result as String;
+  }
+
+  Future<void> declineGroupInvite(String inviteId) async {
+    await _client.rpc<dynamic>(
+      'decline_group_invite',
+      params: {'p_invite_id': inviteId},
+    );
+  }
+
+  /// 내가 받은 pending 초대 — 그룹 이모지/이름 + 초대자 닉네임까지 채운다.
+  /// 비공개 그룹 초대일 경우 RLS 의 groups_read 정책상 그룹 메타가 안 보일
+  /// 수 있어, 그땐 클라이언트가 fallback 표시.
+  Future<List<GroupInvite>> fetchMyPendingInvites() async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return const [];
+    final rows = await _client
+        .from('group_invites')
+        .select('id, group_id, inviter_id, invitee_id, status, '
+            'created_at, responded_at, expires_at')
+        .eq('invitee_id', uid)
+        .eq('status', 'pending')
+        .order('created_at', ascending: false);
+
+    final list = (rows as List)
+        .map((r) => Map<String, dynamic>.from(r as Map))
+        .toList();
+    if (list.isEmpty) return const [];
+
+    final groupIds = list.map((r) => r['group_id'] as String).toSet().toList();
+    final groupsRows = await _client
+        .from('community_groups')
+        .select('id, name, emoji')
+        .inFilter('id', groupIds);
+    final groupsById = <String, Map<String, dynamic>>{
+      for (final r in (groupsRows as List))
+        (r as Map)['id'] as String: Map<String, dynamic>.from(r),
+    };
+
+    // get_group_member_handles 는 같은 그룹 멤버 사이만 통과하므로,
+    // 아직 가입 안 한 invitee 는 inviter 닉네임을 조회 못 함.
+    // 별도 RPC get_invite_inviter_handles 를 사용 — 본인이 받은 pending
+    // 초대의 inviter 닉네임만 노출.
+    final inviterNicks = <String, String>{};
+    final inviterRows = await _client
+        .rpc<dynamic>('get_invite_inviter_handles');
+    for (final r in (inviterRows as List)) {
+      final m = Map<String, dynamic>.from(r as Map);
+      inviterNicks[m['inviter_id'] as String] = m['nickname'] as String;
+    }
+
+    return list.map((j) {
+      final g = groupsById[j['group_id']];
+      return GroupInvite.fromJson(
+        j,
+        groupName: g?['name'] as String?,
+        groupEmoji: g?['emoji'] as String?,
+        inviterNickname: inviterNicks[j['inviter_id'] as String],
+      );
+    }).toList();
+  }
+
+  /// 마이 탭 배지용 가벼운 카운트.
+  Future<int> countMyPendingInvites() async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return 0;
+    final res = await _client
+        .from('group_invites')
+        .select('id')
+        .eq('invitee_id', uid)
+        .eq('status', 'pending')
+        .count();
+    return res.count;
   }
 
   // ── 헬퍼: 닉네임 일괄 조회 ────────────────────────────────────

@@ -341,3 +341,140 @@ enum ReportTargetType { post, tip, user }
 extension ReportTargetTypeX on ReportTargetType {
   String get value => name;
 }
+
+/// 인스타식 신고 사유 — 사용자 보이는 9가지 카테고리.
+/// DB enum (`report_reason`) 은 4개라 가까운 값으로 매핑하고, 한국어
+/// 라벨은 reports.detail 에 함께 저장해 관리자가 정확한 사유 확인.
+enum ReportReasonUi {
+  dontLike(
+    '마음에 들지 않습니다',
+    ReportReason.other,
+  ),
+  unwantedContact(
+    '따돌림 또는 원치 않는 연락',
+    ReportReason.harassment,
+  ),
+  selfHarm(
+    '자살, 자해 및 섭식 장애',
+    ReportReason.harassment,
+  ),
+  violence(
+    '폭력, 혐오 또는 학대',
+    ReportReason.harassment,
+  ),
+  regulated(
+    '규제 품목의 판매 또는 홍보',
+    ReportReason.inappropriate,
+  ),
+  sexual(
+    '나체 이미지 또는 성적 행위',
+    ReportReason.inappropriate,
+  ),
+  scam(
+    '스캠, 사기 또는 스팸',
+    ReportReason.spam,
+  ),
+  misinformation(
+    '거짓 정보',
+    ReportReason.other,
+  ),
+  ipViolation(
+    '지식재산권 침해',
+    ReportReason.other,
+  );
+
+  const ReportReasonUi(this.label, this.dbReason);
+  final String label;
+  final ReportReason dbReason;
+}
+
+// ── 사용자 디렉토리 ───────────────────────────────────────────
+
+/// 닉네임 검색/리스트 RPC 의 행. PII 차단 위해 user_id, nickname 만.
+class UserHandle {
+  const UserHandle({required this.userId, required this.nickname});
+  final String userId;
+  final String nickname;
+
+  factory UserHandle.fromJson(Map<String, dynamic> j) => UserHandle(
+        userId: j['user_id'] as String,
+        nickname: j['nickname'] as String,
+      );
+}
+
+// ── 그룹 초대 ─────────────────────────────────────────────────
+
+enum GroupInviteStatus { pending, accepted, declined, expired }
+
+extension GroupInviteStatusX on GroupInviteStatus {
+  String get value => name;
+  static GroupInviteStatus parse(String? v) {
+    switch (v) {
+      case 'accepted':
+        return GroupInviteStatus.accepted;
+      case 'declined':
+        return GroupInviteStatus.declined;
+      case 'expired':
+        return GroupInviteStatus.expired;
+      case 'pending':
+      default:
+        return GroupInviteStatus.pending;
+    }
+  }
+}
+
+class GroupInvite {
+  const GroupInvite({
+    required this.id,
+    required this.groupId,
+    required this.inviterId,
+    required this.inviteeId,
+    required this.status,
+    required this.createdAt,
+    required this.expiresAt,
+    this.respondedAt,
+    this.groupName,
+    this.groupEmoji,
+    this.inviterNickname,
+  });
+
+  final String id;
+  final String groupId;
+  final String inviterId;
+  final String inviteeId;
+  final GroupInviteStatus status;
+  final DateTime createdAt;
+  final DateTime expiresAt;
+  final DateTime? respondedAt;
+
+  // 화면 표시용 — 별도 join/lookup 으로 채움.
+  final String? groupName;
+  final String? groupEmoji;
+  final String? inviterNickname;
+
+  bool get isExpired => DateTime.now().isAfter(expiresAt);
+  bool get isPending => status == GroupInviteStatus.pending && !isExpired;
+
+  factory GroupInvite.fromJson(
+    Map<String, dynamic> j, {
+    String? groupName,
+    String? groupEmoji,
+    String? inviterNickname,
+  }) {
+    return GroupInvite(
+      id: j['id'] as String,
+      groupId: j['group_id'] as String,
+      inviterId: j['inviter_id'] as String,
+      inviteeId: j['invitee_id'] as String,
+      status: GroupInviteStatusX.parse(j['status'] as String?),
+      createdAt: DateTime.parse(j['created_at'] as String).toLocal(),
+      expiresAt: DateTime.parse(j['expires_at'] as String).toLocal(),
+      respondedAt: j['responded_at'] == null
+          ? null
+          : DateTime.tryParse(j['responded_at'] as String)?.toLocal(),
+      groupName: groupName,
+      groupEmoji: groupEmoji,
+      inviterNickname: inviterNickname,
+    );
+  }
+}

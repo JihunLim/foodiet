@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/community_provider.dart';
@@ -27,6 +28,14 @@ class CommunityGroupMembersPage extends ConsumerWidget {
         elevation: 0,
         title: Text('구성원',
             style: FoodietText.h3.copyWith(color: FoodietColors.warm900)),
+        actions: [
+          IconButton(
+            tooltip: '초대',
+            icon: const Icon(Icons.person_add_alt_1_outlined,
+                color: FoodietColors.warm900),
+            onPressed: () => context.push('/community/group/$groupId/invite'),
+          ),
+        ],
       ),
       body: SafeArea(
         child: membersAsync.when(

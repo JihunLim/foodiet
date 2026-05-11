@@ -46,6 +46,13 @@ class _OnboardingSurveyPageState
   bool _submitting = false;
   String? _error;
 
+  /// 서버에 이미 저장돼 있는 본인 닉네임. 앱 재설치 후 재로그인 케이스에서
+  /// 자동 입력 + 중복 검사 우회용. 같은 사용자의 기존 nickname 은 unique
+  /// 제약에 본인 행이라 어차피 충돌하지 않지만, isAvailable 체크는 단순히
+  /// "어딘가에 존재하는가" 만 보므로 본인 거여도 false 가 나온다 — 그래서
+  /// 클라이언트에서 명시적으로 우회한다.
+  String? _existingNickname;
+
   // ── 입력 상태 ─────────────────────────────────────────────────────
   final _nick = TextEditingController();
 
@@ -55,6 +62,47 @@ class _OnboardingSurveyPageState
   final _goalWeight = TextEditingController();
   DateTime? _deadline;
   int? _activity; // 1~5
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExistingProfile();
+  }
+
+  /// 서버 profile 이 이미 있으면 (앱 재설치 등) 닉네임/키/체중/목표를
+  /// 자동 채워서 사용자가 똑같은 정보를 다시 입력하지 않게 한다.
+  Future<void> _loadExistingProfile() async {
+    try {
+      final p = await ref.read(profileProvider.future);
+      if (!mounted || p == null) return;
+      setState(() {
+        final existingNick = p.nickname.trim();
+        if (existingNick.isNotEmpty) {
+          _existingNickname = existingNick;
+          if (_nick.text.isEmpty) _nick.text = existingNick;
+        }
+        if (p.heightCm != null && _height.text.isEmpty) {
+          _height.text = _formatNum(p.heightCm!);
+        }
+        if (p.weightKg != null && _weight.text.isEmpty) {
+          _weight.text = _formatNum(p.weightKg!);
+        }
+        if (p.goalWeightKg != null && _goalWeight.text.isEmpty) {
+          _goalWeight.text = _formatNum(p.goalWeightKg!);
+        }
+        _deadline ??= p.goalDeadline;
+        _activity ??= p.activityLevel;
+      });
+    } catch (_) {
+      // profile 미존재/네트워크 에러는 신규 가입 흐름과 동일하게 처리.
+    }
+  }
+
+  /// 정수면 정수, 소수면 한 자리로 — 컨트롤러에 자연스럽게 들어가게.
+  String _formatNum(double v) {
+    if (v == v.roundToDouble()) return v.toInt().toString();
+    return v.toStringAsFixed(1);
+  }
 
   @override
   void dispose() {
@@ -89,13 +137,67 @@ class _OnboardingSurveyPageState
 
   Future<void> _next() async {
     if (!_canNext) return;
+    // Step 1 (닉네임) — 다음으로 넘기기 전에 형식 + 중복 검사.
+    // 마지막 단계에서야 "이미 쓰는 닉네임이에요" 안내 받고 처음으로 돌아가는
+    // 최악의 동선을 막는다.
+    if (_step == 0) {
+      final ok = await _verifyNickname();
+      if (!ok) return;
+    }
     if (_step < 2) {
-      setState(() => _step += 1);
+      setState(() {
+        _step += 1;
+        _error = null;
+      });
       _pc.animateToPage(_step,
           duration: const Duration(milliseconds: 240),
           curve: Curves.easeOut);
     } else {
       await _submit();
+    }
+  }
+
+  /// Step 1 의 닉네임 검증 — 형식 + 서버 중복 체크. 통과해야 true.
+  Future<bool> _verifyNickname() async {
+    if (_submitting) return false;
+    final desired = _nick.text.trim();
+    // 기존 본인 닉네임이면 우회 — 서버에 같은 nickname 행이 있어도 본인 거니까.
+    if (_existingNickname != null && _existingNickname == desired) {
+      setState(() => _error = null);
+      return true;
+    }
+    final svc = ref.read(nicknameServiceProvider);
+    final fmt = svc.validateFormat(desired);
+    if (!fmt.isValid) {
+      setState(() => _error = fmt.message ?? '닉네임 형식이 올바르지 않아요.');
+      return false;
+    }
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      final available = await svc.isAvailable(desired).timeout(
+            const Duration(seconds: 8),
+            onTimeout: () => true, // 네트워크 느림 — 최종 가드는 서버 unique.
+          );
+      if (!mounted) return false;
+      if (!available) {
+        setState(() {
+          _submitting = false;
+          _error = '이미 사용 중인 닉네임이에요. 다른 걸로 시도해보자.';
+        });
+        return false;
+      }
+      setState(() => _submitting = false);
+      return true;
+    } catch (e) {
+      if (!mounted) return false;
+      setState(() {
+        _submitting = false;
+        _error = '닉네임 확인 실패: $e';
+      });
+      return false;
     }
   }
 
@@ -170,16 +272,19 @@ class _OnboardingSurveyPageState
       }
       // 빠른 사전 체크 — 다른 사용자가 같은 닉네임을 막 쓰는 시점이 있다면
       // upsert 가 unique 제약 위반(23505)을 던질 수 있으므로 그때도 잡는다.
-      final available = await svc.isAvailable(desiredNick).timeout(
-        const Duration(seconds: 8),
-        onTimeout: () => true, // 네트워크 느리면 일단 시도. 서버가 막아주면 됨.
-      );
-      if (!available) {
-        setState(() {
-          _submitting = false;
-          _error = '이미 사용 중인 닉네임이에요. 다른 걸로 시도해보자.';
-        });
-        return;
+      // 본인 기존 닉네임은 우회 (자기 행이 unique 위반을 일으키지 않음).
+      if (_existingNickname == null || _existingNickname != desiredNick) {
+        final available = await svc.isAvailable(desiredNick).timeout(
+          const Duration(seconds: 8),
+          onTimeout: () => true, // 네트워크 느리면 일단 시도. 서버가 막아주면 됨.
+        );
+        if (!available) {
+          setState(() {
+            _submitting = false;
+            _error = '이미 사용 중인 닉네임이에요. 다른 걸로 시도해보자.';
+          });
+          return;
+        }
       }
 
       try {
@@ -296,7 +401,9 @@ class _OnboardingSurveyPageState
               child: PrimaryButton(
                 label: _step == 2
                     ? (_submitting ? '저장 중…' : '완료')
-                    : '다음',
+                    : (_step == 0
+                        ? (_submitting ? '확인 중…' : '중복확인')
+                        : '다음'),
                 onPressed:
                     (!_canNext || _submitting) ? null : _next,
               ),

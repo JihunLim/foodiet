@@ -51,19 +51,39 @@ class _CommunityPageState extends ConsumerState<CommunityPage>
           unselectedLabelColor: FoodietColors.warm500,
           indicatorColor: FoodietColors.coral500,
           indicatorWeight: 3,
-          labelStyle:
-              FoodietText.body.copyWith(fontWeight: FontWeight.w700),
+          indicatorSize: TabBarIndicatorSize.label,
+          labelStyle: FoodietText.title
+              .copyWith(fontWeight: FontWeight.w800, fontSize: 18),
+          unselectedLabelStyle: FoodietText.title
+              .copyWith(fontWeight: FontWeight.w700, fontSize: 18),
           tabs: const [
             Tab(text: '내 그룹'),
             Tab(text: '그룹 탐색'),
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add_rounded,
-                color: FoodietColors.warm900),
-            tooltip: '새 그룹 만들기',
-            onPressed: () => context.push('/community/new'),
+          // 탭 인덱스에 따라 다른 액션. AnimatedBuilder 로 _tab 변경 listen.
+          AnimatedBuilder(
+            animation: _tab,
+            builder: (_, __) {
+              final isMyGroups = _tab.index == 0;
+              return IconButton(
+                tooltip: isMyGroups ? '오늘 식단 공유' : '새 그룹 만들기',
+                icon: Icon(
+                  isMyGroups
+                      ? Icons.add_a_photo_outlined
+                      : Icons.group_add_outlined,
+                  color: FoodietColors.warm900,
+                ),
+                onPressed: () {
+                  if (isMyGroups) {
+                    context.push('/community/share-today');
+                  } else {
+                    context.push('/community/new');
+                  }
+                },
+              );
+            },
           ),
         ],
       ),

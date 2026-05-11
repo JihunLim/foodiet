@@ -37,6 +37,19 @@ class CommunityPostDetailPage extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: FoodietColors.cream00,
         elevation: 0,
+        // 공유 직후 push 컨텍스트가 끊기는 케이스(go 사용)에도 항상
+        // 뒤로가기가 보이도록 leading 명시. canPop 안 되면 그룹 상세로 fallback.
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new,
+              color: FoodietColors.warm900, size: 18),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/community/group/$groupId');
+            }
+          },
+        ),
         actions: [
           postAsync.maybeWhen(
             data: (post) {
@@ -712,59 +725,112 @@ class _TipRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final nick = tip.nickname ?? '구성원';
+    final initial = nick.isEmpty ? '?' : nick.characters.first;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: FoodietColors.cream00,
-          borderRadius: BorderRadius.circular(FoodietShape.radiusMd),
-          border: Border.all(color: FoodietColors.cream100),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 인스타식 작은 아바타.
+          Container(
+            width: 30,
+            height: 30,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [FoodietColors.coral300, FoodietColors.coral500],
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              initial,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(tip.nickname ?? '구성원',
-                    style: FoodietText.bodySm.copyWith(
-                        color: FoodietColors.warm900,
-                        fontWeight: FontWeight.w700)),
-                const Spacer(),
-                Text(
-                    DateFormat('M/d HH:mm').format(tip.createdAt),
-                    style: FoodietText.caption
-                        .copyWith(color: FoodietColors.warm500)),
-                IconButton(
-                  iconSize: 18,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints.tightFor(width: 28, height: 28),
-                  icon: const Icon(Icons.more_horiz,
-                      color: FoodietColors.warm500),
-                  onPressed: () => showMenu<String>(
-                    context: context,
-                    position:
-                        const RelativeRect.fromLTRB(200, 200, 0, 0),
-                    items: [
-                      if (isMine)
-                        const PopupMenuItem(value: 'delete', child: Text('삭제')),
-                      if (!isMine)
-                        const PopupMenuItem(value: 'report', child: Text('신고')),
+                // 닉네임(굵게) + 본문 — 같은 텍스트 블록으로 자연스럽게 wrap.
+                RichText(
+                  text: TextSpan(
+                    style: FoodietText.bodySm
+                        .copyWith(color: FoodietColors.warm900, height: 1.35),
+                    children: [
+                      TextSpan(
+                        text: '$nick  ',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      TextSpan(text: tip.body),
                     ],
-                  ).then((v) {
-                    if (!context.mounted) return;
-                    if (v == 'delete') _delete(context, ref);
-                    if (v == 'report') _report(context, ref);
-                  }),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                // 메타 라인 — 시간 + 액션 (인라인 버튼).
+                Row(
+                  children: [
+                    Text(_relativeTime(tip.createdAt),
+                        style: FoodietText.caption.copyWith(
+                            color: FoodietColors.warm500, fontSize: 11)),
+                    if (isMine) ...[
+                      const SizedBox(width: 12),
+                      _MetaAction(
+                        label: '삭제',
+                        onTap: () => _delete(context, ref),
+                      ),
+                    ] else ...[
+                      const SizedBox(width: 12),
+                      _MetaAction(
+                        label: '신고',
+                        onTap: () => _report(context, ref),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
-            const SizedBox(height: 4),
-            Text(tip.body,
-                style: FoodietText.body
-                    .copyWith(color: FoodietColors.warm900)),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// "방금 / N분 전 / N시간 전 / 어제 / M/d" 형식.
+  String _relativeTime(DateTime when) {
+    final diff = DateTime.now().difference(when);
+    if (diff.inMinutes < 1) return '방금';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}분 전';
+    if (diff.inHours < 24) return '${diff.inHours}시간 전';
+    if (diff.inDays == 1) return '어제';
+    if (diff.inDays < 7) return '${diff.inDays}일 전';
+    return DateFormat('M/d').format(when);
+  }
+}
+
+/// 댓글 메타 라인의 작은 텍스트 액션 (삭제/신고).
+class _MetaAction extends StatelessWidget {
+  const _MetaAction({required this.label, required this.onTap});
+  final String label;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Text(label,
+            style: FoodietText.caption.copyWith(
+                color: FoodietColors.warm500,
+                fontWeight: FontWeight.w700,
+                fontSize: 11)),
       ),
     );
   }

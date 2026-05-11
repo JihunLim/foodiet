@@ -14,6 +14,7 @@ import '../../services/community/community_models.dart';
 import '../../services/community/community_service.dart';
 import '../../theme/foodiet_tokens.dart';
 import 'community_card.dart';
+import 'community_comments_sheet.dart';
 
 class CommunityGroupDetailPage extends ConsumerWidget {
   const CommunityGroupDetailPage({super.key, required this.groupId});
@@ -251,8 +252,8 @@ class _MemberFeed extends ConsumerWidget {
                       padding: const EdgeInsets.only(bottom: 12),
                       child: CommunityCard(
                         post: p,
-                        onTap: () => context.push(
-                            '/community/group/${p.groupId}/post/${p.id}'),
+                        onTap: () =>
+                            CommunityCommentsSheet.show(context, p),
                       ),
                     )),
             ],

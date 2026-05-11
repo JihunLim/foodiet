@@ -540,8 +540,7 @@ class _TimelineRow extends StatelessWidget {
 }
 
 /// AppBar 우상단 공유 버튼. 완료된 기록이 하나라도 있어야 활성화.
-/// 홈 AppBar 우측 — 마이(프로필) 진입 아이콘.
-/// (기존 PT 공유 버튼 자리. 공유는 커뮤니티 탭으로 이동.)
+/// 홈 AppBar 우측 — 설정 진입 아이콘.
 class _ProfileButton extends StatelessWidget {
   const _ProfileButton({required this.onTap});
   final VoidCallback onTap;
@@ -549,7 +548,7 @@ class _ProfileButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: '마이',
+      message: '설정',
       child: Material(
         color: Colors.transparent,
         shape: const CircleBorder(),
@@ -560,8 +559,8 @@ class _ProfileButton extends StatelessWidget {
             width: 44,
             height: 44,
             child: Center(
-              child: Icon(Icons.person_outline,
-                  color: FoodietColors.warm700, size: 22),
+              child: Icon(Icons.menu_rounded,
+                  color: FoodietColors.warm700, size: 24),
             ),
           ),
         ),
