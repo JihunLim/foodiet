@@ -11,6 +11,16 @@ import 'package:go_router/go_router.dart';
 import '../features/auth/sign_in_page.dart';
 import '../features/calendar/calendar_page.dart';
 import '../features/camera/camera_page.dart';
+import '../features/community/community_group_create_page.dart';
+import '../features/community/community_group_detail_page.dart';
+import '../features/community/community_group_invite_page.dart';
+import '../features/community/community_group_join_page.dart';
+import '../features/community/community_group_members_page.dart';
+import '../features/community/community_my_invites_page.dart';
+import '../features/community/community_group_settings_page.dart';
+import '../features/community/community_page.dart';
+import '../features/community/community_post_detail_page.dart';
+import '../features/community/community_share_today_page.dart';
 import '../features/entry/entry_detail_page.dart';
 import '../features/home/home_shell.dart';
 import '../features/home/home_today_page.dart';
@@ -18,6 +28,7 @@ import '../features/insight/insight_page.dart';
 import '../features/onboarding/onboarding_permissions_page.dart';
 import '../features/onboarding/onboarding_survey_page.dart';
 import '../features/onboarding/onboarding_value_page.dart';
+import '../features/profile/nickname_edit_page.dart';
 import '../features/profile/profile_page.dart';
 import '../features/profile/profile_edit_page.dart';
 import '../features/splash/splash_page.dart';
@@ -92,12 +103,67 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) =>
             EntryDetailPage(entryId: state.pathParameters['id']!),
       ),
+
+      // 마이(프로필)는 홈 AppBar 아이콘에서 진입 — top-level 라우트로 분리.
+      GoRoute(
+        path: '/profile',
+        builder: (_, __) => const ProfilePage(),
+      ),
       GoRoute(
         path: '/profile/edit',
         builder: (_, __) => const ProfileEditPage(),
       ),
+      GoRoute(
+        path: '/profile/nickname',
+        builder: (_, __) => const NicknameEditPage(),
+      ),
 
-      // 5-탭 Shell (홈 / 기록 / 인사이트 / 마이 — FAB=카메라는 별도)
+      // 커뮤니티 서브 화면들 (모두 top-level — 탭 전환과 무관하게 push).
+      GoRoute(
+        path: '/community/new',
+        builder: (_, __) => const CommunityGroupCreatePage(),
+      ),
+      GoRoute(
+        path: '/community/join',
+        builder: (_, __) => const CommunityGroupJoinPage(),
+      ),
+      GoRoute(
+        path: '/community/share-today',
+        builder: (_, __) => const CommunityShareTodayPage(),
+      ),
+      GoRoute(
+        path: '/community/group/:id',
+        builder: (_, state) =>
+            CommunityGroupDetailPage(groupId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/community/group/:id/settings',
+        builder: (_, state) =>
+            CommunityGroupSettingsPage(groupId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/community/group/:id/members',
+        builder: (_, state) =>
+            CommunityGroupMembersPage(groupId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/community/group/:id/invite',
+        builder: (_, state) =>
+            CommunityGroupInvitePage(groupId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/profile/invites',
+        builder: (_, __) => const CommunityMyInvitesPage(),
+      ),
+      GoRoute(
+        path: '/community/group/:gid/post/:pid',
+        builder: (_, state) => CommunityPostDetailPage(
+          groupId: state.pathParameters['gid']!,
+          postId: state.pathParameters['pid']!,
+        ),
+      ),
+
+      // 5-탭 Shell (홈 / 기록 / 인사이트 / 커뮤니티 — FAB=카메라는 별도)
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => HomeShell(navigationShell: shell),
         branches: [
@@ -111,7 +177,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             GoRoute(path: '/insight', builder: (_, __) => const InsightPage()),
           ]),
           StatefulShellBranch(routes: [
-            GoRoute(path: '/profile', builder: (_, __) => const ProfilePage()),
+            GoRoute(
+              path: '/community',
+              builder: (_, __) => const CommunityPage(),
+            ),
           ]),
         ],
       ),

@@ -158,14 +158,23 @@ class _FoodietAppState extends ConsumerState<FoodietApp> {
       // 넓은 화면에선 좌우가 너무 길어지는 문제가 있다. 화면 전체에
       // 레터박스를 씌워 최대 폭 540 으로 제한하고, 양쪽은 크림 배경.
       builder: (context, child) {
+        // 글로벌 키보드 dismiss — 입력란 외부의 빈 영역을 탭하면 키보드가
+        // 자동으로 내려간다. translucent 라서 자식(TextField 등)이 hit 인
+        // 곳은 자식이 그대로 처리, 빈 곳만 이 탭 콜백이 잡는다.
+        Widget wrapped = GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+          child: child ?? const SizedBox(),
+        );
+
         final width = MediaQuery.sizeOf(context).width;
-        if (width <= 600 || child == null) return child ?? const SizedBox();
+        if (width <= 600 || child == null) return wrapped;
         return ColoredBox(
           color: FoodietColors.cream00,
           child: Center(
             child: SizedBox(
               width: 540,
-              child: child,
+              child: wrapped,
             ),
           ),
         );

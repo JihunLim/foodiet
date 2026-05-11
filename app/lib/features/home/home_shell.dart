@@ -408,18 +408,34 @@ class _HomeShellState extends ConsumerState<HomeShell>
 
   @override
   Widget build(BuildContext context) {
+    // 커뮤니티 탭(index 3) 에서는 가운데 카메라 FAB 를 아래로 슬라이드해서
+    // 숨긴다 — 사진 기록보다 피드 보기에 집중하는 흐름.
+    final isCommunityTab = widget.navigationShell.currentIndex == 3;
+
     return Scaffold(
       backgroundColor: FoodietColors.cream00,
       body: widget.navigationShell,
-      floatingActionButton: Listener(
-        behavior: HitTestBehavior.opaque,
-        onPointerDown: _onPointerDown,
-        onPointerMove: _onPointerMove,
-        onPointerUp: _onPointerUp,
-        onPointerCancel: _onPointerCancel,
-        child: _GlassCameraFab(
-          fabKey: _fabKey,
-          anim: _anim,
+      floatingActionButton: IgnorePointer(
+        ignoring: isCommunityTab,
+        // 카메라 버튼은 그대로 (scale 1) — 자기 반지름(절반)만큼만 아래로
+        // 슬라이드해서 BottomAppBar 노치를 동그라미가 채우는 모양.
+        // 시각적으로 하단바 윗 라인이 평평해 보이고, 카메라가 그 안에
+        // "쏙" 들어간 듯.
+        child: AnimatedSlide(
+          duration: const Duration(milliseconds: 360),
+          curve: Curves.easeOutCubic,
+          offset: isCommunityTab ? const Offset(0, 0.5) : Offset.zero,
+          child: Listener(
+            behavior: HitTestBehavior.opaque,
+            onPointerDown: _onPointerDown,
+            onPointerMove: _onPointerMove,
+            onPointerUp: _onPointerUp,
+            onPointerCancel: _onPointerCancel,
+            child: _GlassCameraFab(
+              fabKey: _fabKey,
+              anim: _anim,
+            ),
+          ),
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
@@ -460,9 +476,9 @@ class _HomeShellState extends ConsumerState<HomeShell>
                 onTap: _go,
               ),
               _Tab(
-                icon: Icons.person_outline,
-                active: Icons.person,
-                label: '마이',
+                icon: Icons.groups_outlined,
+                active: Icons.groups_rounded,
+                label: '커뮤니티',
                 index: 3,
                 shell: widget.navigationShell,
                 onTap: _go,

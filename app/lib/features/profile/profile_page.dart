@@ -20,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../providers/community_provider.dart';
 import '../../providers/profile_provider.dart';
 import '../../providers/supabase_provider.dart';
 import '../../services/daily_share_service.dart';
@@ -33,13 +34,15 @@ class ProfilePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(profileProvider).valueOrNull;
+    final inviteCount =
+        ref.watch(myInvitesCountProvider).valueOrNull ?? 0;
 
     return Scaffold(
       backgroundColor: FoodietColors.cream00,
       appBar: AppBar(
         backgroundColor: FoodietColors.cream00,
         elevation: 0,
-        title: Text('마이',
+        title: Text('설정',
             style:
                 FoodietText.h3.copyWith(color: FoodietColors.warm900)),
       ),
@@ -53,27 +56,79 @@ class ProfilePage extends ConsumerWidget {
               goalWeightKg: profile?.goalWeightKg,
             ),
             const SizedBox(height: FoodietShape.sp24),
-            _MenuItem(
-              icon: Icons.flag_outlined,
-              label: '프로필 · 목표 · 기한',
-              onTap: () => context.push('/profile/edit'),
+
+            // 계정 — 본인의 식별/목표 정보를 다루는 항목들.
+            _MenuGroup(
+              title: '계정',
+              children: [
+                _MenuItem(
+                  icon: Icons.badge_outlined,
+                  label: '닉네임 변경',
+                  onTap: () => context.push('/profile/nickname'),
+                ),
+                _MenuItem(
+                  icon: Icons.flag_outlined,
+                  label: '프로필 · 목표 · 기한',
+                  onTap: () => context.push('/profile/edit'),
+                ),
+              ],
             ),
-            _MenuItem(
-              icon: Icons.share_outlined,
-              label: 'PT · 친구에게 공유',
-              onTap: () => _sharePt(context, ref),
+            const SizedBox(height: FoodietShape.sp16),
+
+            // 커뮤니티 — 그룹 관련 알림성 진입.
+            _MenuGroup(
+              title: '커뮤니티',
+              children: [
+                _MenuItem(
+                  icon: Icons.mail_outline_rounded,
+                  label: '그룹 초대장',
+                  badgeCount: inviteCount,
+                  onTap: () => context.push('/profile/invites'),
+                ),
+              ],
             ),
-            _MenuItem(
-              icon: Icons.notifications_none_rounded,
-              label: '알림 설정',
-              onTap: () => _openNotificationSheet(context),
+            const SizedBox(height: FoodietShape.sp16),
+
+            // 알림 — 끼니 리마인더 등 푸시.
+            _MenuGroup(
+              title: '알림',
+              children: [
+                _MenuItem(
+                  icon: Icons.notifications_none_rounded,
+                  label: '알림 설정',
+                  onTap: () => _openNotificationSheet(context),
+                ),
+              ],
             ),
-            _MenuItem(
-              icon: Icons.shield_outlined,
-              label: '프라이버시 · 데이터',
-              onTap: () => _openPrivacySheet(context, ref),
+            const SizedBox(height: FoodietShape.sp16),
+
+            // 공유 — 외부로 나가는 액션.
+            _MenuGroup(
+              title: '공유',
+              children: [
+                _MenuItem(
+                  icon: Icons.share_outlined,
+                  label: 'PT · 친구에게 공유',
+                  onTap: () => _sharePt(context, ref),
+                ),
+              ],
             ),
-            const Divider(height: 40, color: FoodietColors.cream100),
+            const SizedBox(height: FoodietShape.sp16),
+
+            // 데이터 / 개인정보.
+            _MenuGroup(
+              title: '데이터 · 개인정보',
+              children: [
+                _MenuItem(
+                  icon: Icons.shield_outlined,
+                  label: '프라이버시 · 데이터',
+                  onTap: () => _openPrivacySheet(context, ref),
+                ),
+              ],
+            ),
+            const SizedBox(height: FoodietShape.sp24),
+
+            // 로그아웃은 그룹 박스 밖 — 위험성 있는 액션.
             _MenuItem(
               icon: Icons.logout_rounded,
               label: '로그아웃',
@@ -200,17 +255,54 @@ class _Header extends StatelessWidget {
   }
 }
 
+/// 그룹 라벨 + 한 묶음 메뉴 항목들. 시각적으로 카드 박스로 묶어
+/// 카테고리를 즉시 인지할 수 있게 한다.
+class _MenuGroup extends StatelessWidget {
+  const _MenuGroup({required this.title, required this.children});
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 8, bottom: 6),
+          child: Text(title,
+              style: FoodietText.caption.copyWith(
+                  color: FoodietColors.warm500,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.4)),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: FoodietColors.cream50,
+            borderRadius: BorderRadius.circular(FoodietShape.radiusLg),
+            border: Border.all(color: FoodietColors.cream100),
+          ),
+          padding: const EdgeInsets.symmetric(
+              horizontal: 4, vertical: 2),
+          child: Column(children: children),
+        ),
+      ],
+    );
+  }
+}
+
 class _MenuItem extends StatelessWidget {
   const _MenuItem({
     required this.icon,
     required this.label,
     required this.onTap,
     this.color,
+    this.badgeCount = 0,
   });
   final IconData icon;
   final String label;
   final VoidCallback onTap;
   final Color? color;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
@@ -227,6 +319,23 @@ class _MenuItem extends StatelessWidget {
                 style: FoodietText.body
                     .copyWith(color: color ?? FoodietColors.warm900)),
             const Spacer(),
+            if (badgeCount > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: FoodietColors.coral500,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  badgeCount > 99 ? '99+' : '$badgeCount',
+                  style: FoodietText.bodySm.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11),
+                ),
+              ),
+            if (badgeCount > 0) const SizedBox(width: 8),
             if (color == null)
               const Icon(Icons.chevron_right,
                   color: FoodietColors.warm500, size: 20),

@@ -1,7 +1,7 @@
 name: foodiet
 description: "foodiet — 사진 한 장으로 기록되는 AI 다이어트 파트너."
 publish_to: 'none'
-version: 1.0.0+8
+version: 2.0.0+4
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -36,6 +36,7 @@ dependencies:
   # Utilities
   intl: ^0.20.2                     # 로케일/단위 포맷 (§8.1 i18n) — Flutter 3.41 SDK 핀에 맞춤
   image_picker: ^1.1.2              # 원탭 사진 기록 (§4.1)
+  cached_network_image: ^3.4.1      # 사진 디스크 캐시 — 재다운로드 방지
   image: ^4.2.0                     # 1600px 긴변 리사이즈 (§8.2)
   flutter_image_compress: ^2.3.0    # HEIC→JPEG fallback + q80 재인코딩 (§18.1 #13)
   uuid: ^4.4.0                      # entry_id 생성
@@ -103,9 +104,9 @@ flutter:
   fonts:
     - family: GmarketSans
       fonts:
-        - asset: assets/fonts/GmarketSansLight.woff
+        - asset: assets/fonts/GmarketSansLight.ttf
           weight: 300
-        - asset: assets/fonts/GmarketSansMedium.woff
+        - asset: assets/fonts/GmarketSansMedium.ttf
           weight: 500
-        - asset: assets/fonts/GmarketSansBold.woff
+        - asset: assets/fonts/GmarketSansBold.ttf
           weight: 700

@@ -24,6 +24,7 @@ library;
 
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -142,19 +143,20 @@ class _SignedNetworkImageState extends ConsumerState<SignedNetworkImage> {
         _scheduleRetry('signedUrlProvider error: $e');
         return widget.errorBuilder?.call(context) ?? _defaultFallback();
       },
-      data: (url) => Image.network(
-        url,
+      // CachedNetworkImage — 디스크 캐시로 재방문/스크롤 시 즉시 표시.
+      // cacheKey 를 path 로 고정해서, signed URL 의 token 이 새로 발급돼도
+      // 같은 사진은 동일 캐시 엔트리를 사용 (token 만 다른 캐시 미스 방지).
+      data: (url) => CachedNetworkImage(
+        imageUrl: url,
+        cacheKey: widget.path,
         fit: widget.fit,
-        cacheWidth: widget.cacheWidth,
-        cacheHeight: widget.cacheHeight,
-        // loadingBuilder 는 Image.network 가 "다운로드 중" 일 때 쓰임.
-        // frame 이 한 번이라도 들어왔으면 child 를 그대로 돌려준다.
-        loadingBuilder: (context, child, progress) {
-          if (progress == null) return child;
-          return widget.loadingBuilder?.call(context) ?? _defaultLoading();
-        },
-        errorBuilder: (_, error, __) {
-          _scheduleRetry('Image.network error: $error');
+        memCacheWidth: widget.cacheWidth,
+        memCacheHeight: widget.cacheHeight,
+        fadeInDuration: const Duration(milliseconds: 120),
+        placeholder: (context, _) =>
+            widget.loadingBuilder?.call(context) ?? _defaultLoading(),
+        errorWidget: (_, __, error) {
+          _scheduleRetry('CachedNetworkImage error: $error');
           return widget.errorBuilder?.call(context) ?? _defaultFallback();
         },
       ),

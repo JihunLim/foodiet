@@ -31,6 +31,7 @@ class AppProfile {
     this.dietRestrictions = const [],
     this.birthDate,
     this.sex,
+    this.nicknameChangedAt,
   });
 
   final String userId;
@@ -47,6 +48,23 @@ class AppProfile {
   final List<String> dietRestrictions;
   final DateTime? birthDate;
   final Sex? sex;
+  /// 마지막으로 닉네임을 수동 변경한 시각. 30일 cooldown 안내에 사용.
+  final DateTime? nicknameChangedAt;
+
+  /// 닉네임을 다음에 변경 가능한 시각 (30일 cooldown 종료 시점).
+  /// 한 번도 변경한 적 없으면 null.
+  DateTime? get nicknameChangeAvailableAt {
+    final at = nicknameChangedAt;
+    if (at == null) return null;
+    return at.add(const Duration(days: 30));
+  }
+
+  /// 지금 시점에 닉네임 변경이 가능한지.
+  bool get canChangeNicknameNow {
+    final at = nicknameChangeAvailableAt;
+    if (at == null) return true;
+    return DateTime.now().isAfter(at);
+  }
 
   factory AppProfile.fromJson(Map<String, dynamic> j) => AppProfile(
         userId: j['user_id'] as String,
@@ -70,6 +88,9 @@ class AppProfile {
             ? null
             : DateTime.tryParse(j['birth_date'] as String),
         sex: _parseSex(j['sex'] as String?),
+        nicknameChangedAt: j['nickname_changed_at'] == null
+            ? null
+            : DateTime.tryParse(j['nickname_changed_at'] as String)?.toLocal(),
       );
 
   static Sex? _parseSex(String? v) {
@@ -96,7 +117,7 @@ final profileProvider = FutureProvider<AppProfile?>((ref) async {
         'user_id, nickname, locale, unit_energy, unit_mass, '
         'daily_kcal_target, goal_weight_kg, height_cm, weight_kg, '
         'goal_deadline, activity_level, diet_restrictions, '
-        'birth_date, sex',
+        'birth_date, sex, nickname_changed_at',
       )
       .eq('user_id', user.id)
       .maybeSingle();
