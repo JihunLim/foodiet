@@ -334,10 +334,13 @@ class CommunityService {
   }
 
   /// 새 포스트 생성. show_* 는 그룹 멤버십 설정에서 가져와 카드에 박제 (snapshot).
+  /// [entryIds] 는 이 카드가 어떤 식단 항목들을 합산했는지 — 같은 날 또 공유할 때
+  /// "이미 공유됨" 판단에 사용된다.
   Future<String> createPost({
     required String groupId,
     required String userId,
     required DateTime postDate,
+    required List<String> entryIds,
     int? totalKcal,
     int? targetKcal,
     Map<String, dynamic>? macros,
@@ -357,6 +360,7 @@ class CommunityService {
           'group_id': groupId,
           'user_id': userId,
           'post_date': dateStr,
+          'entry_ids': entryIds,
           'total_kcal': showKcal ? totalKcal : null,
           'target_kcal': showKcal ? targetKcal : null,
           'macros': showMacros ? macros : null,
@@ -371,6 +375,24 @@ class CommunityService {
         .select('id')
         .single();
     return inserted['id'] as String;
+  }
+
+  /// 같은 그룹/날짜에 내가 이미 공유한 entry id 집합.
+  /// Share 페이지에서 기본 미선택 처리에 사용.
+  Future<Set<String>> alreadySharedEntryIds({
+    required String groupId,
+    required DateTime postDate,
+  }) async {
+    final dateStr =
+        '${postDate.year.toString().padLeft(4, '0')}-${postDate.month.toString().padLeft(2, '0')}-${postDate.day.toString().padLeft(2, '0')}';
+    final rows = await _client.rpc(
+      'already_shared_entry_ids',
+      params: {'p_group_id': groupId, 'p_post_date': dateStr},
+    );
+    if (rows is List) {
+      return rows.map((e) => e.toString()).toSet();
+    }
+    return <String>{};
   }
 
   Future<void> softDeletePost(String postId) async {
