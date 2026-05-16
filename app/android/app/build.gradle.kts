@@ -1,3 +1,7 @@
+import java.util.Properties
+import java.io.FileInputStream
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -5,6 +9,13 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
     // Firebase: google-services.json 파싱 + 빌드시 리소스 주입.
     id("com.google.gms.google-services")
+}
+
+// Release upload keystore 정보. `android/key.properties` 는 .gitignore.
+// 개발자/CI 마다 별도로 두며, 파일이 없으면 release 빌드가 debug 키로 폴백.
+val keystoreProperties = Properties().apply {
+    val f = rootProject.file("key.properties")
+    if (f.exists()) load(FileInputStream(f))
 }
 
 android {
@@ -20,8 +31,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
     }
 
     defaultConfig {
@@ -35,11 +48,22 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        // upload keystore 가 있으면 release 서명. 없으면 release block 에서 debug 로 폴백.
+        if (rootProject.file("key.properties").exists()) {
+            create("release") {
+                storeFile = keystoreProperties["storeFile"]?.let { file(it) }
+                storePassword = keystoreProperties["storePassword"] as String?
+                keyAlias = keystoreProperties["keyAlias"] as String?
+                keyPassword = keystoreProperties["keyPassword"] as String?
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release")
+                ?: signingConfigs.getByName("debug")
             // Phase 3 에서 ProGuard/R8 keep 규칙 + minify 활성화 예정.
             // 그 전까지는 R8 이 reflection-heavy 한 google_mobile_ads / kakao_sdk
             // 클래스를 strip 해서 빌드가 깨지므로 명시적으로 꺼둔다.
