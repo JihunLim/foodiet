@@ -148,7 +148,7 @@ class _CommunityShareTodayPageState
       final showKcal = _showKcal ?? true;
       final showMacros = _showMacros ?? true;
 
-      final id = await svc.createPost(
+      await svc.createPost(
         groupId: groupId,
         userId: user.id,
         postDate: DateTime.now(),
@@ -166,7 +166,9 @@ class _CommunityShareTodayPageState
       );
       invalidateCommunityFor(ref, groupId: groupId);
       if (!mounted) return;
-      context.go('/community/group/$groupId/post/$id');
+      // share page 닫고 커뮤니티 메인(내 그룹 탭)으로 복귀.
+      // invalidate 로 피드는 이미 최신 — 사용자가 거기서 본인 카드를 본다.
+      context.pop();
     } catch (e) {
       if (!mounted) return;
       _showSnack('공유에 실패했어요: ${_short(e.toString())}');
@@ -383,12 +385,19 @@ class _CommunityShareTodayPageState
                       onChanged: (v) => setState(() => _showMacros = v),
                     ),
                     const SizedBox(height: FoodietShape.sp12),
+                    Text('한마디 (선택)',
+                        style: FoodietText.bodySm.copyWith(
+                            color: FoodietColors.warm700,
+                            fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 6),
                     TextField(
                       controller: _caption,
                       maxLength: 200,
-                      maxLines: 2,
+                      maxLines: 1,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) =>
+                          FocusScope.of(context).unfocus(),
                       decoration: const InputDecoration(
-                        labelText: '한마디 (선택)',
                         hintText: '예: 점심 닭가슴살 굿!',
                       ),
                     ),
@@ -453,19 +462,20 @@ class _EntryPickerSection extends StatelessWidget {
           final meal = mealLabelOf(e.mealSlot);
           final kcal = e.kcalPerPerson;
           return InkWell(
-            onTap: () => onToggle(e.id),
+            // 이미 공유된 항목은 탭/체크 모두 잠금.
+            onTap: isShared ? null : () => onToggle(e.id),
             borderRadius: BorderRadius.circular(FoodietShape.radiusMd),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Opacity(
-                opacity: isShared && !isSelected ? 0.55 : 1.0,
+                opacity: isShared ? 0.5 : 1.0,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Checkbox(
-                      value: isSelected,
+                      value: isShared ? false : isSelected,
                       activeColor: FoodietColors.coral500,
-                      onChanged: (_) => onToggle(e.id),
+                      onChanged: isShared ? null : (_) => onToggle(e.id),
                     ),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(FoodietShape.radiusSm),
