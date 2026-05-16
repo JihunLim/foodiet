@@ -18,6 +18,7 @@ import '../../providers/insight_provider.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/native_ad_card.dart';
 import '../../widgets/science_citations_sheet.dart';
+import 'meal_plan_tab.dart';
 import 'weight_insight_page.dart';
 
 class InsightPage extends ConsumerWidget {
@@ -26,7 +27,7 @@ class InsightPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         backgroundColor: FoodietColors.cream00,
         appBar: AppBar(
@@ -61,6 +62,7 @@ class InsightPage extends ConsumerWidget {
                 splashFactory: NoSplash.splashFactory,
                 overlayColor: WidgetStateProperty.all(Colors.transparent),
                 tabs: const [
+                  Tab(text: '식단추천'),
                   Tab(text: '체중'),
                   Tab(text: '영양'),
                 ],
@@ -72,6 +74,7 @@ class InsightPage extends ConsumerWidget {
           child: TabBarView(
             physics: ClampingScrollPhysics(),
             children: [
+              MealPlanTab(),
               WeightInsightPage(),
               _NutritionTab(),
             ],
