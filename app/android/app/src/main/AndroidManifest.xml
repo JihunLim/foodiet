@@ -1,4 +1,31 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- ─── 권한 ──────────────────────────────────────────────────────────
+         iOS Info.plist 의 NSCameraUsageDescription / NSPhotoLibraryUsage… /
+         UNUserNotificationCenter 등에 대응되는 Android 권한 선언.
+         13(=API 33) 이상의 알림·미디어 분리, 14 의 exact alarm 정책까지 포함. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- 사진 라이브러리(메뉴 사진 첨부용). Android 13+ 는 granular media. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <!-- ~Android 12 : 레거시 외부 저장. 13+ 에서는 자동 무시. -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32"/>
+    <!-- FCM + flutter_local_notifications: Android 13+ 부터 런타임 요청 필요. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- 식사 reminder 로컬 알림 정밀 예약. SCHEDULE 은 12+, USE 는 14+ Play 정책. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
+
+    <!-- 카메라 기능을 직접 사용. tablet 등 카메라 없는 디바이스에서도 보여야 하면
+         required=false 로 바꿀 수 있음. 일단 식단 기록 핵심 기능이라 required. -->
+    <uses-feature android:name="android.hardware.camera" android:required="true"/>
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
+
     <application
         android:label="foodiet"
         android:name="${applicationName}"
