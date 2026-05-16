@@ -3,8 +3,11 @@
 /// 기획안 §5.1 / §18.1 #10.
 /// 각 버튼은 `AuthService` 의 네이티브 OAuth 플로우를 띄우고, 받은 id_token 을
 /// Supabase 에 넘긴다. 성공 시 authStateProvider 가 갱신되어 router 가 자동 라우팅.
-/// 로케일이 ko 가 아니거나 KAKAO_NATIVE_APP_KEY 가 없으면 Kakao 버튼 숨김.
+/// - Apple 은 iOS 에서만 노출 (Android 는 native 미지원, web OAuth 셋업 별도 필요).
+/// - 로케일이 ko 가 아니거나 KAKAO_NATIVE_APP_KEY 가 없으면 Kakao 버튼 숨김.
 library;
+
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -54,6 +57,9 @@ class _SignInPageState extends ConsumerState<SignInPage> {
   Widget build(BuildContext context) {
     final locale = Localizations.localeOf(context).languageCode;
     final showKakao = locale == 'ko' && Env.kakaoNativeAppKey != null;
+    // Apple Sign-In 은 iOS native 만 지원. Android 에서 web OAuth 활성화는
+    // Apple Developer 콘솔의 Service ID 발급 등 별도 셋업이 필요해 우선 숨김.
+    final showApple = Platform.isIOS;
     final auth = ref.watch(authServiceProvider);
 
     return Scaffold(
@@ -82,16 +88,18 @@ class _SignInPageState extends ConsumerState<SignInPage> {
                       style: FoodietText.body
                           .copyWith(color: FoodietColors.warm500)),
                   const Spacer(),
-                  _ProviderButton(
-                    label: 'Apple로 계속하기',
-                    bg: const Color(0xFF000000),
-                    fg: Colors.white,
-                    icon: Icons.apple,
-                    onPressed: _busy
-                        ? null
-                        : () => _run(auth.signInWithApple, 'Apple'),
-                  ),
-                  const SizedBox(height: FoodietShape.sp12),
+                  if (showApple) ...[
+                    _ProviderButton(
+                      label: 'Apple로 계속하기',
+                      bg: const Color(0xFF000000),
+                      fg: Colors.white,
+                      icon: Icons.apple,
+                      onPressed: _busy
+                          ? null
+                          : () => _run(auth.signInWithApple, 'Apple'),
+                    ),
+                    const SizedBox(height: FoodietShape.sp12),
+                  ],
                   _ProviderButton(
                     label: 'Google로 계속하기',
                     bg: Colors.white,
