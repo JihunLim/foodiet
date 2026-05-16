@@ -843,19 +843,28 @@ class _ReactionFlightState extends State<_ReactionFlight>
 
   @override
   Widget build(BuildContext context) {
+    // Overlay 직속 자식에는 Material/DefaultTextStyle 조상이 없어서 Text 위젯에
+    // Flutter 의 "no Material ancestor" 디버그 표식(노란 밑줄)이 그려진다.
+    // DefaultTextStyle 로 감싸서 밑줄을 없애고 일관된 텍스트 스타일을 적용.
     return IgnorePointer(
-      child: AnimatedBuilder(
-        animation: _ctrl,
-        builder: (_, __) {
-          final t = _ctrl.value;
-          return Stack(
-            children: switch (widget.kind) {
-              ReactionKind.fire => _fire(t),
-              ReactionKind.clap => _clap(t),
-              ReactionKind.heart => _heart(t),
-            },
-          );
-        },
+      child: DefaultTextStyle(
+        style: const TextStyle(
+          color: Colors.black,
+          decoration: TextDecoration.none,
+        ),
+        child: AnimatedBuilder(
+          animation: _ctrl,
+          builder: (_, __) {
+            final t = _ctrl.value;
+            return Stack(
+              children: switch (widget.kind) {
+                ReactionKind.fire => _fire(t),
+                ReactionKind.clap => _clap(t),
+                ReactionKind.heart => _heart(t),
+              },
+            );
+          },
+        ),
       ),
     );
   }

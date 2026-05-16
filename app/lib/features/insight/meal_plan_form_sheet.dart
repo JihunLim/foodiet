@@ -220,7 +220,7 @@ class _MealPlanFormSheetState extends ConsumerState<_MealPlanFormSheet> {
               const SizedBox(height: 6),
               Center(
                 child: Text(
-                  '한 주에 한 번만 짤 수 있어. 사진 1장으로 30초 정도 걸려.',
+                  '한 주에 한 번만 짤 수 있어. 식단 짜는 데 30초 정도 걸려.',
                   style: FoodietText.caption
                       .copyWith(color: FoodietColors.warm500),
                 ),

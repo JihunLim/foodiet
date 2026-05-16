@@ -20,10 +20,12 @@ class WaterTrackerCard extends ConsumerStatefulWidget {
 }
 
 class _WaterTrackerCardState extends ConsumerState<WaterTrackerCard>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   WaterLog? _local;       // 낙관적 업데이트용
   bool _wasAchieved = false; // 달성 → 미달성 전환 감지로 애니메이션 트리거
   late final AnimationController _pulse;
+  // 로딩 중 컵이 점진적으로 채워지는 애니메이션. 데이터 도착 전까지 무한 반복.
+  late final AnimationController _loadingFill;
 
   @override
   void initState() {
@@ -32,11 +34,16 @@ class _WaterTrackerCardState extends ConsumerState<WaterTrackerCard>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
+    _loadingFill = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    )..repeat();
   }
 
   @override
   void dispose() {
     _pulse.dispose();
+    _loadingFill.dispose();
     super.dispose();
   }
 
@@ -77,7 +84,7 @@ class _WaterTrackerCardState extends ConsumerState<WaterTrackerCard>
   Widget build(BuildContext context) {
     final async = ref.watch(todayWaterLogProvider);
     return async.when(
-      loading: () => _shell(child: _loading()),
+      loading: () => _shell(child: _skeletonBody()),
       error: (e, _) => _shell(child: _errorPlaceholder()),
       data: (server) {
         // 서버 값이 도착했고 로컬 캐시가 없으면 채움.
@@ -127,12 +134,150 @@ class _WaterTrackerCardState extends ConsumerState<WaterTrackerCard>
     );
   }
 
-  Widget _loading() => const SizedBox(
-        height: 120,
-        child: Center(
-          child: CircularProgressIndicator(color: FoodietColors.coral500),
-        ),
-      );
+  /// 로딩 상태에서도 카드 골격 + 헤더 + 컵 그리드는 그대로 렌더링하되,
+  /// 컵이 0 → placeholder target 까지 부드럽게 채워지는 애니메이션을 반복한다.
+  /// 데이터 도착 시 자연스럽게 실제 값으로 전환된다.
+  Widget _skeletonBody() {
+    const placeholderTarget = 8;
+    const accent = Color(0xFF4FB3FF);
+    return AnimatedBuilder(
+      animation: _loadingFill,
+      builder: (ctx, _) {
+        final raw = _loadingFill.value;
+        // 0.0 ~ 0.85 동안 채워지고, 0.85 ~ 1.0 은 가득 찬 상태를 잠깐 보여줌.
+        // 그 뒤 controller 가 repeat 되며 자연스레 0 으로 초기화.
+        final ratio = raw < 0.85 ? raw / 0.85 : 1.0;
+        final dummyCups =
+            (ratio * placeholderTarget).floor().clamp(0, placeholderTarget);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.local_drink_outlined,
+                    color: accent.withValues(alpha: 0.55), size: 22),
+                const SizedBox(width: 8),
+                Text('오늘 마신 물',
+                    style: FoodietText.title.copyWith(
+                        color:
+                            FoodietColors.warm900.withValues(alpha: 0.55),
+                        fontWeight: FontWeight.w700)),
+                const Spacer(),
+                Opacity(
+                  opacity: 0.45,
+                  child: Text('…',
+                      style: FoodietText.title.copyWith(
+                          color: accent,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Opacity(
+              opacity: 0.5,
+              child: Text('오늘 기록 불러오는 중…',
+                  style: FoodietText.caption
+                      .copyWith(color: FoodietColors.warm500)),
+            ),
+            const SizedBox(height: FoodietShape.sp12),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: List.generate(placeholderTarget, (i) {
+                final filled = i < dummyCups;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOut,
+                  width: 38,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: filled
+                        ? accent.withValues(alpha: 0.55)
+                        : FoodietColors.cream100,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: filled
+                          ? accent.withValues(alpha: 0.6)
+                          : FoodietColors.warm500.withValues(alpha: 0.12),
+                    ),
+                  ),
+                  child: Icon(
+                    filled
+                        ? Icons.local_drink
+                        : Icons.local_drink_outlined,
+                    color: filled
+                        ? Colors.white.withValues(alpha: 0.9)
+                        : FoodietColors.warm500.withValues(alpha: 0.45),
+                    size: 20,
+                  ),
+                );
+              }),
+            ),
+            const SizedBox(height: FoodietShape.sp12),
+            Opacity(
+              opacity: 0.45,
+              child: Row(
+                children: [
+                  OutlinedButton(
+                    onPressed: null,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 12),
+                      side: const BorderSide(color: FoodietColors.cream100),
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(FoodietShape.radiusMd),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.remove_rounded,
+                            size: 16,
+                            color: FoodietColors.warm500
+                                .withValues(alpha: 0.4)),
+                        const SizedBox(width: 4),
+                        Text('되돌리기',
+                            style: FoodietText.caption.copyWith(
+                                color: FoodietColors.warm500
+                                    .withValues(alpha: 0.4),
+                                fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: FoodietShape.sp8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: null,
+                      icon: const Icon(Icons.water_drop_rounded, size: 18),
+                      label: const Text('한 잔 마셨어'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            accent.withValues(alpha: 0.45),
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor:
+                            accent.withValues(alpha: 0.45),
+                        disabledForegroundColor: Colors.white,
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                              FoodietShape.radiusMd),
+                        ),
+                        textStyle: FoodietText.body
+                            .copyWith(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   Widget _errorPlaceholder() => Text('물 기록을 불러오지 못했어.',
       style: FoodietText.bodySm.copyWith(color: FoodietColors.warm500));
