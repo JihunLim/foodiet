@@ -6,6 +6,7 @@ library;
 import 'dart:async';
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -63,6 +64,15 @@ Future<void> main() async {
   // FCM 백그라운드 핸들러는 Firebase 초기화 뒤에 딱 한 번 등록.
   if (firebaseReady) {
     FirebaseMessaging.onBackgroundMessage(_fcmBackgroundHandler);
+    // Crashlytics — Flutter framework + Dart 비동기 예외를 모두 수집.
+    // debug 빌드에서는 콘솔 로그만 남기고 서버 전송은 하지 않는다.
+    FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(!kDebugMode);
+    FlutterError.onError =
+        FirebaseCrashlytics.instance.recordFlutterFatalError;
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
   }
 
   // AdMob — 네이티브 팩토리는 AppDelegate / MainActivity 에서 등록.

@@ -23,6 +23,7 @@ dependencies:
   # Firebase / FCM (§18.1 #11 — Project: foodiet-4f861)
   firebase_core: ^3.0.0
   firebase_messaging: ^15.0.0       # 푸시 (APNs는 FCM 브리지)
+  firebase_crashlytics: ^4.0.0      # Play Console pre-launch report + 운영 중 crash 수집
 
   # OAuth — §5.1 / §18.1 #10
   # 각 SDK 가 네이티브 로그인 흐름을 띄우고, 받은 id_token 을 Supabase 에 넘겨
