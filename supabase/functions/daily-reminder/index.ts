@@ -54,8 +54,15 @@ async function _hasLoggedToday(userId: string): Promise<boolean> {
 
 function _checkInternalAuth(req: Request): boolean {
   const expected = Deno.env.get('INTERNAL_PUSH_TOKEN');
-  if (!expected) return true;
-  return (req.headers.get('x-foodiet-internal') ?? '') === expected;
+  // 시크릿 미설정 시 거절. dev 에서도 명시적으로 set 해야 함.
+  if (!expected) return false;
+  const got = req.headers.get('x-foodiet-internal') ?? '';
+  if (got.length !== expected.length) return false;
+  let diff = 0;
+  for (let i = 0; i < got.length; i++) {
+    diff |= got.charCodeAt(i) ^ expected.charCodeAt(i);
+  }
+  return diff === 0;
 }
 
 Deno.serve(async (req: Request) => {
