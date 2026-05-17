@@ -86,10 +86,19 @@ dev_dependencies:
 # 앱 아이콘 — `dart run flutter_launcher_icons` 로 재생성.
 # 마스터 1024×1024 PNG 는 tool/build_app_icon.py 가 생성한다.
 flutter_launcher_icons:
-  ios: true
-  android: false                    # 안드 아이콘은 추후
+  # iOS 아이콘은 수동 관리 (Asset Catalog). flutter_launcher_icons 는 실행 시
+  # pbxproj 의 ASSETCATALOG_COMPILER_* 옵션을 "AppIcon" 으로 덮어쓰는 부작용이
+  # 있어 (Accent / WidgetBackground 색까지 망가짐) iOS 는 비활성화.
+  ios: false
+  android: true                     # Android 8+ adaptive icon + 구버전 raster fallback
   image_path: "assets/icon/foodiet-icon.png"
   remove_alpha_ios: true            # iOS 는 alpha 금지 (App Store 거부)
+  min_sdk_android: 24
+  # Adaptive icon — foreground 는 같은 마스터를 26% inset 시켜 safe zone 안에
+  # 들어가게 한다. background 는 cream00 단색.
+  adaptive_icon_background: "#FFFDFA"
+  adaptive_icon_foreground: "assets/icon/foodiet-icon.png"
+  adaptive_icon_foreground_inset: 26
 
 flutter:
   uses-material-design: true

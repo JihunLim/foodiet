@@ -21,12 +21,10 @@ class Env {
   }
 
   static String get supabaseUrl =>
-      _require('SUPABASE_URL', 'https://example.supabase.co');
+      _requireNotPlaceholder('SUPABASE_URL');
 
-  static String get supabasePublishableKey => _require(
-        'SUPABASE_PUBLISHABLE_KEY',
-        'sb_publishable_Lcz1dUKdgrFRPvfp3A-Ttw_U3EFm3bb',
-      );
+  static String get supabasePublishableKey =>
+      _requireNotPlaceholder('SUPABASE_PUBLISHABLE_KEY');
 
   static String get defaultLocale =>
       dotenv.maybeGet('DEFAULT_LOCALE') ?? 'ko';
@@ -59,12 +57,17 @@ class Env {
     return v;
   }
 
-  static String _require(String key, String fallback) {
-    final v = dotenv.maybeGet(key);
-    if (v == null || v.isEmpty) {
-      // 개발 중 .env 누락 시에도 크래시 없이 fallback으로 진행.
-      // 프로덕션 빌드에서는 CI에서 반드시 .env 를 생성하도록 강제.
-      return fallback;
+  /// 시크릿이거나 prod 환경에서 반드시 채워져야 하는 키 — .env 가 비어 있거나
+  /// placeholder (`YOUR_...` / `your_...`) 면 즉시 throw 해서 binary 에 잘못된
+  /// fallback 이 박히는 일을 막는다.
+  static String _requireNotPlaceholder(String key) {
+    final v = dotenv.maybeGet(key) ?? '';
+    final lower = v.toLowerCase();
+    if (v.isEmpty || lower.startsWith('your_') || lower.startsWith('yourkey')) {
+      throw StateError(
+        '$key 가 .env 에 설정되지 않았어. '
+        '`cp .env.example .env` 후 실제 값을 채워줘.',
+      );
     }
     return v;
   }

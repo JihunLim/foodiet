@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ 의 백업/이전(transfer) 동작 명시.
+  Foodiet 는 인증 토큰·식단 사진 캐시·식단 reminder prefs 등 민감 데이터를 다루므로
+  cloud 백업과 device-to-device 이전 양쪽 모두 전체 제외(<exclude/>).
+  사용자가 새 기기로 옮길 때는 OAuth 재로그인으로 데이터 복원(서버 원본).
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>

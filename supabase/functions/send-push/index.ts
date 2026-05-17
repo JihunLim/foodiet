@@ -35,9 +35,18 @@ interface DeviceTokenRow {
 
 function _checkInternalAuth(req: Request): boolean {
   const expected = Deno.env.get('INTERNAL_PUSH_TOKEN');
-  if (!expected) return true; // dev mode — secret 미설정 시 통과
+  // 시크릿이 설정 안 되어 있으면 누구나 호출 가능한 상태가 되므로 거절.
+  // 로컬 dev 에서는 supabase secrets set INTERNAL_PUSH_TOKEN=<any> 로 명시.
+  if (!expected) return false;
   const got = req.headers.get('x-foodiet-internal') ?? '';
-  return got === expected;
+  // 길이 비교는 timing attack 표면이지만 짧은 토큰 + 짧은 응답 시간이라 영향
+  // 미미. 그래도 동등성 비교는 동일 길이일 때만 통과.
+  if (got.length !== expected.length) return false;
+  let diff = 0;
+  for (let i = 0; i < got.length; i++) {
+    diff |= got.charCodeAt(i) ^ expected.charCodeAt(i);
+  }
+  return diff === 0;
 }
 
 Deno.serve(async (req: Request) => {
@@ -111,10 +120,11 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  // 무효 토큰 청소.
+  // 무효 토큰 청소. 토큰 값을 PostgREST 필터에 직접 보간하지 않고 각 토큰을
+  // URL-encoded eq.<value> 로 따로 삭제 — quote/comma/특수문자 주입 방어.
   if (stale.length > 0) {
-    const list = stale.map(t => `"${t.replace(/"/g, '\\"')}"`).join(',');
-    await srDelete('device_tokens', `token=in.(${list})`);
+    await Promise.all(stale.map((t) =>
+      srDelete('device_tokens', `token=eq.${encodeURIComponent(t)}`)));
   }
 
   // 발송 로그 (sent>0 일 때만 sent_at 기록).
