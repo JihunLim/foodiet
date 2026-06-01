@@ -178,6 +178,37 @@ class FavoritesService {
     }
   }
 
+  /// 관리 화면용 — 행만 삭제하고 사진은 남겨둔다. 실행취소 시 [restore] 로
+  /// 되살리고(사진 재활용), 취소하지 않으면 [deleteImage] 로 정리한다.
+  Future<void> deleteRow(String id) async {
+    await _sb.from('favorites').delete().eq('id', id);
+  }
+
+  /// 스냅샷 사진 제거(best-effort) — 실행취소 시한이 지난 뒤 호출.
+  Future<void> deleteImage(String? imagePath) async {
+    if (imagePath == null || imagePath.isEmpty) return;
+    try {
+      await _sb.storage
+          .from(FoodietSupabase.foodPhotosBucket)
+          .remove([imagePath]);
+    } catch (_) {/* ignore */}
+  }
+
+  /// 삭제 실행취소 — 동일 id/사진으로 행을 되살린다(사진은 유지돼 있었음).
+  Future<void> restore(Favorite f) async {
+    await _sb.from('favorites').insert({
+      'id': f.id,
+      'user_id': f.userId,
+      'name': f.name,
+      'image_path': f.imagePath,
+      'kcal_total': f.kcalTotal,
+      'macros': f.macros,
+      'meal_slot': f.mealSlot,
+      'eating_type': f.eatingType,
+      'pinned_at': f.pinnedAt.toUtc().toIso8601String(),
+    });
+  }
+
   /// 즐겨찾기에서 1탭 재기록 — 사진/분석 없이 done 상태 entry 를 즉시 생성.
   ///
   /// 끼니(meal_slot)는 즐겨찾기에 저장된 값이 아니라 **현재 시각**으로 재추론한다

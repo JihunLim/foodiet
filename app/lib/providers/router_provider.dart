@@ -22,6 +22,7 @@ import '../features/community/community_page.dart';
 import '../features/community/community_post_detail_page.dart';
 import '../features/community/community_share_today_page.dart';
 import '../features/entry/entry_detail_page.dart';
+import '../features/favorites/favorites_manage_page.dart';
 import '../features/home/home_shell.dart';
 import '../features/home/home_today_page.dart';
 import '../features/insight/insight_page.dart';
@@ -105,6 +106,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
 
       // 마이(프로필)는 홈 AppBar 아이콘에서 진입 — top-level 라우트로 분리.
+      GoRoute(
+        path: '/favorites',
+        builder: (_, __) => const FavoritesManagePage(),
+      ),
       GoRoute(
         path: '/profile',
         builder: (_, __) => const ProfilePage(),
