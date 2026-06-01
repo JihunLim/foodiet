@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../providers/entries_provider.dart';
+import '../../providers/favorites_provider.dart';
 import '../../providers/insight_provider.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/native_ad_card.dart';
@@ -968,12 +969,14 @@ class _MacroBig extends StatelessWidget {
 
 // ─── Top 자주 먹은 음식 ────────────────────────────────────────────────
 
-class _TopFoodsCard extends StatelessWidget {
+class _TopFoodsCard extends ConsumerWidget {
   const _TopFoodsCard({required this.summary});
   final InsightSummary summary;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final favs = ref.watch(favoritesProvider).valueOrNull ?? const <Favorite>[];
+
     return Container(
       padding: const EdgeInsets.all(FoodietShape.sp16),
       decoration: BoxDecoration(
@@ -985,10 +988,21 @@ class _TopFoodsCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _cardHeader('자주 먹은 음식',
-              '지난 ${summary.windowDays}일 중 가장 많이 등장한 상위 5개'),
+              '별표를 누르면 홈에서 한 번에 다시 기록할 수 있어'),
           const SizedBox(height: FoodietShape.sp8),
           ...List.generate(summary.topFoods.length, (i) {
             final f = summary.topFoods[i];
+            // f.name 은 정규화된 키 — 즐겨찾기의 raw 이름도 같은 방식으로 정규화해 비교.
+            Favorite? existing;
+            for (final fv in favs) {
+              if (normalizeFoodName(fv.name) == f.name) {
+                existing = fv;
+                break;
+              }
+            }
+            final isFav = existing != null;
+            // 매크로를 가진 대표 기록이 없으면 추가는 불가(해제는 가능).
+            final canToggle = isFav || f.representative != null;
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Row(
@@ -1021,6 +1035,23 @@ class _TopFoodsCard extends StatelessWidget {
                   Text('${f.count}회',
                       style: FoodietText.bodySm
                           .copyWith(color: FoodietColors.warm500)),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints:
+                        const BoxConstraints(minWidth: 36, minHeight: 36),
+                    iconSize: 20,
+                    tooltip: isFav ? '즐겨찾기 해제' : '빠른 기록에 추가',
+                    icon: Icon(
+                      isFav ? Icons.star_rounded : Icons.star_border_rounded,
+                      color: canToggle
+                          ? FoodietColors.coral500
+                          : FoodietColors.cream100,
+                    ),
+                    onPressed: canToggle
+                        ? () => _toggleTopFood(context, ref, f, existing)
+                        : null,
+                  ),
                 ],
               ),
             );
@@ -1028,6 +1059,34 @@ class _TopFoodsCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _toggleTopFood(BuildContext context, WidgetRef ref,
+      TopFood food, Favorite? existing) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final service = ref.read(favoritesServiceProvider);
+    try {
+      if (existing != null) {
+        await service.removeById(existing.id, imagePath: existing.imagePath);
+        ref.invalidate(favoritesProvider);
+        messenger
+          ..clearSnackBars()
+          ..showSnackBar(const SnackBar(content: Text('즐겨찾기에서 뺐어')));
+      } else {
+        final rep = food.representative;
+        if (rep == null) return;
+        final fav = await service.addFromEntry(rep);
+        ref.invalidate(favoritesProvider);
+        messenger
+          ..clearSnackBars()
+          ..showSnackBar(
+              SnackBar(content: Text("'${fav.name}' 빠른 기록에 추가했어 ⭐")));
+      }
+    } catch (e) {
+      messenger
+        ..clearSnackBars()
+        ..showSnackBar(SnackBar(content: Text('실패했어: $e')));
+    }
   }
 }
 

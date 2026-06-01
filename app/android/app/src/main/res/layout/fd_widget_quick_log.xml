@@ -48,4 +48,29 @@
         android:paddingVertical="8dp"
         android:layout_marginTop="10dp"
         android:background="@drawable/fd_widget_cta" />
+
+    <!-- 빠른 기록 — 즐겨찾기 상위 2개. 데이터가 있으면 Kotlin 이 VISIBLE 로. -->
+    <TextView
+        android:id="@+id/fd_ql_fav1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:textColor="@color/fd_coral500"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:layout_marginTop="8dp" />
+
+    <TextView
+        android:id="@+id/fd_ql_fav2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:textColor="@color/fd_coral500"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:layout_marginTop="4dp" />
 </LinearLayout>

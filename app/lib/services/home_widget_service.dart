@@ -51,6 +51,12 @@ class FoodietWidgetSnapshot {
     required this.coachTip,
     required this.entryCount,
     required this.updatedAt,
+    this.fav1Id = '',
+    this.fav1Name = '',
+    this.fav1Kcal = 0,
+    this.fav2Id = '',
+    this.fav2Name = '',
+    this.fav2Kcal = 0,
   });
 
   final String nickname;
@@ -65,6 +71,14 @@ class FoodietWidgetSnapshot {
   final String coachTip;
   final int entryCount;
   final DateTime updatedAt;
+
+  // 빠른 기록 — 위젯에서 1탭 재기록할 즐겨찾기 상위 2개 (없으면 빈 문자열).
+  final String fav1Id;
+  final String fav1Name;
+  final int fav1Kcal;
+  final String fav2Id;
+  final String fav2Name;
+  final int fav2Kcal;
 }
 
 class FoodietWidgetService {
@@ -106,6 +120,12 @@ class FoodietWidgetService {
         HomeWidget.saveWidgetData<int>('entry_count', s.entryCount),
         HomeWidget.saveWidgetData<String>(
             'updated_at', s.updatedAt.toIso8601String()),
+        HomeWidget.saveWidgetData<String>('fav1_id', s.fav1Id),
+        HomeWidget.saveWidgetData<String>('fav1_name', s.fav1Name),
+        HomeWidget.saveWidgetData<int>('fav1_kcal', s.fav1Kcal),
+        HomeWidget.saveWidgetData<String>('fav2_id', s.fav2Id),
+        HomeWidget.saveWidgetData<String>('fav2_name', s.fav2Name),
+        HomeWidget.saveWidgetData<int>('fav2_kcal', s.fav2Kcal),
       ]);
       await _updateAll();
     } catch (e) {
@@ -129,6 +149,12 @@ class FoodietWidgetService {
         HomeWidget.saveWidgetData<String>('coach_headline', ''),
         HomeWidget.saveWidgetData<String>('coach_tip', ''),
         HomeWidget.saveWidgetData<int>('entry_count', 0),
+        HomeWidget.saveWidgetData<String>('fav1_id', ''),
+        HomeWidget.saveWidgetData<String>('fav1_name', ''),
+        HomeWidget.saveWidgetData<int>('fav1_kcal', 0),
+        HomeWidget.saveWidgetData<String>('fav2_id', ''),
+        HomeWidget.saveWidgetData<String>('fav2_name', ''),
+        HomeWidget.saveWidgetData<int>('fav2_kcal', 0),
       ]);
       await _updateAll();
     } catch (e) {

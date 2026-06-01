@@ -57,9 +57,13 @@ class MealSlotStat {
 
 /// 자주 먹은 음식.
 class TopFood {
-  const TopFood({required this.name, required this.count});
+  const TopFood({required this.name, required this.count, this.representative});
   final String name;
   final int count;
+
+  /// 즐겨찾기 생성용 대표 entry — kcal 을 가진 가장 최근 기록.
+  /// null 이면 매크로를 알 수 없어 즐겨찾기 별표가 비활성화된다.
+  final Entry? representative;
 }
 
 class InsightSummary {
@@ -200,6 +204,7 @@ InsightSummary _compute(
   int macroSampleDays = 0;
   final macroSeenDays = <DateTime>{};
   final foodFreq = <String, int>{};
+  final foodRep = <String, Entry>{}; // 음식명 → 대표 entry (kcal 보유, 최신).
   int doneCount = 0;
 
   for (final e in inWindow) {
@@ -231,9 +236,14 @@ InsightSummary _compute(
     // 음식 이름 — title 이 있으면 첫 단어만 (공기밥/비빔밥 등 단순 매칭).
     final title = e.title?.trim();
     if (title != null && title.isNotEmpty) {
-      final key = _normalizeFoodName(title);
+      final key = normalizeFoodName(title);
       if (key.isNotEmpty) {
         foodFreq[key] = (foodFreq[key] ?? 0) + 1;
+        // 대표 entry — inWindow 는 captured_at 내림차순이므로
+        // 처음 만난 kcal 보유 entry 가 가장 최근 것이다.
+        if (e.kcalTotal != null && !foodRep.containsKey(key)) {
+          foodRep[key] = e;
+        }
       }
     }
   }
@@ -312,7 +322,8 @@ InsightSummary _compute(
   final topFoods = (foodFreq.entries.toList()
         ..sort((a, b) => b.value.compareTo(a.value)))
       .take(5)
-      .map((e) => TopFood(name: e.key, count: e.value))
+      .map((e) =>
+          TopFood(name: e.key, count: e.value, representative: foodRep[e.key]))
       .toList();
 
   return InsightSummary(
@@ -339,7 +350,7 @@ InsightSummary _compute(
 }
 
 /// 음식명 정규화 — "공기밥 (150g)" → "공기밥".
-String _normalizeFoodName(String s) {
+String normalizeFoodName(String s) {
   var t = s.trim();
   // 괄호 이후 부가정보 제거.
   final paren = t.indexOf(RegExp(r'[(（]'));
