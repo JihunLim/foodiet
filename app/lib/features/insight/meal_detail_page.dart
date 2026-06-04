@@ -265,25 +265,29 @@ class MealDetailPage extends StatelessWidget {
       );
 
   Widget _referencesSection() {
+    final n = meal.name;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader('참고리스트'),
-        _refCard(
-            '한국인 영양섭취기준 (KDRIs, 2020)',
-            '보건복지부·한국영양학회. 성별·연령·활동수준별 일일 에너지·매크로 권장 범위.',
-            'https://www.mohw.go.kr/board.es?mid=a10411010100&bid=0019'),
-        _refCard('USDA FoodData Central',
-            '미국 농무부 식품 영양 데이터베이스. 메뉴별 매크로 추정 기준.',
-            'https://fdc.nal.usda.gov/'),
-        _refCard('EFSA — Adequate intake of water (2010)',
-            '유럽식품안전청 성인 수분 충분섭취량 기준.',
-            'https://www.efsa.europa.eu/en/efsajournal/pub/1459'),
+        _sectionHeader('참고 레시피'),
+        Text('이 요리의 레시피를 더 자세히 찾아볼 수 있어.',
+            style: FoodietText.caption.copyWith(color: FoodietColors.warm500)),
+        const SizedBox(height: FoodietShape.sp8),
+        _refCard('만개의레시피', '"$n" 레시피 검색 결과 보기', _recipe10000(n)),
+        _refCard('유튜브', '"$n 만들기" 영상 보기', _recipeYoutube(n)),
+        _refCard('네이버', '"$n 레시피" 검색', _recipeNaver(n)),
         const SizedBox(height: FoodietShape.sp8),
         Center(child: MealPlanCitationsLink(plan: plan)),
       ],
     );
   }
+
+  String _recipe10000(String q) =>
+      'https://www.10000recipe.com/recipe/list.html?q=${Uri.encodeComponent(q)}';
+  String _recipeYoutube(String q) =>
+      'https://www.youtube.com/results?search_query=${Uri.encodeComponent('$q 만들기')}';
+  String _recipeNaver(String q) =>
+      'https://search.naver.com/search.naver?query=${Uri.encodeComponent('$q 레시피')}';
 
   Widget _refCard(String title, String snippet, String url) => InkWell(
         onTap: () => _launch(url),

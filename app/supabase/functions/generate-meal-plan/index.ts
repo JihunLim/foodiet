@@ -58,8 +58,12 @@ async function searchFoodImage(name: string): Promise<string | null> {
     });
     if (!r.ok) return null;
     const j = await r.json();
-    const link = j?.items?.[0]?.link;
-    return typeof link === 'string' && link.startsWith('http') ? link : null;
+    // thumbnail 은 네이버 CDN 호스팅이라 앱에서 바로 로드된다. link(원본 사이트)는
+    // 핫링크 차단으로 자주 실패 → thumbnail 우선, 없으면 link 폴백.
+    const item = j?.items?.[0];
+    const img = (item?.thumbnail as string | undefined) ??
+      (item?.link as string | undefined);
+    return typeof img === 'string' && img.startsWith('http') ? img : null;
   } catch (_) {
     return null;
   }
