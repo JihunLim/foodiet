@@ -95,8 +95,8 @@ class _EmptyPlan extends ConsumerWidget {
           Text(
             '목표 칼로리·알레르기·냉장고 재료를 알려주면\nAI 가 7일치 식단을 만들어줄게.',
             textAlign: TextAlign.center,
-            style: FoodietText.bodySm
-                .copyWith(color: FoodietColors.warm500, height: 1.5),
+            style: FoodietText.bodySm.copyWith(
+                color: FoodietColors.warm500, height: 1.5),
           ),
           const SizedBox(height: FoodietShape.sp16),
           PrimaryButton(
@@ -131,17 +131,39 @@ class _ErrorPlan extends StatelessWidget {
   }
 }
 
-class _PlanContent extends StatelessWidget {
+class _PlanContent extends StatefulWidget {
   const _PlanContent({required this.plan});
   final MealPlan plan;
 
   @override
+  State<_PlanContent> createState() => _PlanContentState();
+}
+
+class _PlanContentState extends State<_PlanContent> {
+  // 요일별 상세 카드로 스크롤 이동하기 위한 키. 날짜 수만큼 한 번만 생성.
+  late final List<GlobalKey> _dayKeys =
+      List.generate(widget.plan.days.length, (_) => GlobalKey());
+
+  void _scrollToDay(int index) {
+    final ctx = _dayKeys[index].currentContext;
+    if (ctx == null) return;
+    Scrollable.ensureVisible(
+      ctx,
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeInOutCubic,
+      alignment: 0.02, // 상단에 살짝 여백 두고 정렬.
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final plan = widget.plan;
     final dateFmt = DateFormat('M월 d일');
     final weekStart = plan.weekStartDate;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // ── 이번 주 식단 헤더 ──
         Container(
           padding: const EdgeInsets.all(FoodietShape.sp16),
           decoration: BoxDecoration(
@@ -174,13 +196,12 @@ class _PlanContent extends StatelessWidget {
                 style: FoodietText.caption
                     .copyWith(color: FoodietColors.warm500),
               ),
+              // 주간 요약 — 세부 설명이므로 굵게 하지 않음.
               if (plan.weeklySummary.isNotEmpty) ...[
                 const SizedBox(height: FoodietShape.sp12),
                 Text(plan.weeklySummary,
                     style: FoodietText.body.copyWith(
-                        color: FoodietColors.warm900,
-                        fontWeight: FontWeight.w600,
-                        height: 1.5)),
+                        color: FoodietColors.warm900, height: 1.5)),
               ],
               if (plan.dailyKcalTarget != null) ...[
                 const SizedBox(height: 6),
@@ -212,15 +233,24 @@ class _PlanContent extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(height: FoodietShape.sp12),
+        // ── 주간 식단표 — 칸을 탭하면 해당 요일 상세로 스크롤 이동 ──
+        _WeekTable(plan: plan, onTapDay: _scrollToDay),
         const SizedBox(height: FoodietShape.sp16),
-        ...plan.days.map((d) => _DayCard(plan: plan, day: d)),
+        // ── 요일별 상세 (월~일) ──
+        for (var i = 0; i < plan.days.length; i++)
+          _DayCard(
+            key: _dayKeys[i],
+            plan: plan,
+            day: plan.days[i],
+          ),
       ],
     );
   }
 }
 
 class _DayCard extends StatelessWidget {
-  const _DayCard({required this.plan, required this.day});
+  const _DayCard({super.key, required this.plan, required this.day});
   final MealPlan plan;
   final MealPlanDay day;
 
@@ -248,8 +278,9 @@ class _DayCard extends StatelessWidget {
                       fontWeight: FontWeight.w700)),
               const SizedBox(width: 6),
               Text(DateFormat('M/d').format(date),
-                  style: FoodietText.caption
-                      .copyWith(color: FoodietColors.warm500)),
+                  style: FoodietText.caption.copyWith(
+                      color: FoodietColors.warm500,
+                      fontWeight: FontWeight.w700)),
               const Spacer(),
               Text('${day.totalKcal} kcal',
                   style: FoodietText.bodySm.copyWith(
@@ -300,8 +331,9 @@ class _MealRow extends StatelessWidget {
                         fontWeight: FontWeight.w700)),
               ),
               Text('${meal.kcal}kcal',
-                  style: FoodietText.bodySm
-                      .copyWith(color: FoodietColors.warm700)),
+                  style: FoodietText.bodySm.copyWith(
+                      color: FoodietColors.warm700,
+                      fontWeight: FontWeight.w700)),
             ],
           ),
           if (meal.recipeBrief.isNotEmpty) ...[
@@ -329,8 +361,8 @@ class _MealRow extends StatelessWidget {
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(g,
-                              style: FoodietText.caption
-                                  .copyWith(color: FoodietColors.warm700)),
+                              style: FoodietText.caption.copyWith(
+                                  color: FoodietColors.warm700)),
                         ))
                     .toList(),
               ),
@@ -340,14 +372,134 @@ class _MealRow extends StatelessWidget {
             padding: const EdgeInsets.only(top: 4, left: 4),
             child: Text(
               '탄 ${meal.carbG}g · 단 ${meal.proteinG}g · 지 ${meal.fatG}g',
-              style: FoodietText.caption
-                  .copyWith(color: FoodietColors.warm500, fontSize: 10),
+              style: FoodietText.caption.copyWith(
+                  color: FoodietColors.warm500, fontSize: 10),
             ),
           ),
         ],
       ),
     );
   }
+}
+
+/// 주간 식단표 — 월~일 한눈에. 칸을 탭하면 [onTapDay] 로 해당 요일 상세로 이동.
+class _WeekTable extends StatelessWidget {
+  const _WeekTable({required this.plan, required this.onTapDay});
+  final MealPlan plan;
+  final void Function(int index) onTapDay;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: FoodietColors.cream50,
+        borderRadius: BorderRadius.circular(FoodietShape.radiusLg),
+        boxShadow: FoodietShape.shadowCard,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(FoodietShape.sp16,
+                FoodietShape.sp12, FoodietShape.sp16, FoodietShape.sp8),
+            child: Row(
+              children: [
+                const Icon(Icons.calendar_view_week_rounded,
+                    size: 16, color: FoodietColors.coral500),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text('주간 식단표',
+                      style: FoodietText.bodySm.copyWith(
+                          color: FoodietColors.warm900,
+                          fontWeight: FontWeight.w700)),
+                ),
+                Text('탭하면 이동',
+                    style: FoodietText.caption
+                        .copyWith(color: FoodietColors.warm500)),
+              ],
+            ),
+          ),
+          for (var i = 0; i < plan.days.length; i++) ...[
+            const Divider(height: 1, color: FoodietColors.cream100),
+            _WeekTableRow(
+              plan: plan,
+              index: i,
+              onTap: () => onTapDay(i),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _WeekTableRow extends StatelessWidget {
+  const _WeekTableRow({
+    required this.plan,
+    required this.index,
+    required this.onTap,
+  });
+  final MealPlan plan;
+  final int index;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final day = plan.days[index];
+    final date = plan.weekStartDate.add(Duration(days: day.dateOffset));
+    final preview = day.meals.map((m) => m.name).join(' · ');
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+              horizontal: FoodietShape.sp16, vertical: FoodietShape.sp12),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 30,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_shortWeekday(date),
+                        style: FoodietText.bodySm.copyWith(
+                            color: FoodietColors.warm900,
+                            fontWeight: FontWeight.w700)),
+                    Text(DateFormat('M/d').format(date),
+                        style: FoodietText.caption.copyWith(
+                            color: FoodietColors.warm500, fontSize: 10)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: FoodietShape.sp12),
+              Expanded(
+                child: Text(
+                  preview.isEmpty ? '식단 없음' : preview,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: FoodietText.bodySm
+                      .copyWith(color: FoodietColors.warm700),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text('${day.totalKcal}',
+                  style: FoodietText.bodySm.copyWith(
+                      color: FoodietColors.coral500,
+                      fontWeight: FontWeight.w700)),
+              const Icon(Icons.chevron_right_rounded,
+                  size: 16, color: FoodietColors.warm500),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _shortWeekday(DateTime d) {
+  const n = ['월', '화', '수', '목', '금', '토', '일'];
+  return n[(d.weekday - 1).clamp(0, 6)];
 }
 
 String _slotLabel(String slot) {
