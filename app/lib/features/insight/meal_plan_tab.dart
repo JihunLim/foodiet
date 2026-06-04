@@ -13,6 +13,7 @@ import '../../providers/meal_plan_provider.dart';
 import '../../services/meal_plan_service.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/primary_button.dart';
+import 'meal_detail_page.dart';
 import 'meal_plan_citations_sheet.dart';
 import 'meal_plan_form_sheet.dart';
 import 'water_tracker_card.dart';
@@ -289,7 +290,7 @@ class _DayCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: FoodietShape.sp8),
-          ...day.meals.map((m) => _MealRow(meal: m)),
+          ...day.meals.map((m) => _MealRow(meal: m, plan: plan)),
         ],
       ),
     );
@@ -297,86 +298,98 @@ class _DayCard extends StatelessWidget {
 }
 
 class _MealRow extends StatelessWidget {
-  const _MealRow({required this.meal});
+  const _MealRow({required this.meal, required this.plan});
   final MealPlanMeal meal;
+  final MealPlan plan;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: _slotColor(meal.slot).withValues(alpha: 0.15),
-                  borderRadius:
-                      BorderRadius.circular(FoodietShape.radiusXs),
+    return InkWell(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => MealDetailPage(meal: meal, plan: plan),
+        ),
+      ),
+      borderRadius: BorderRadius.circular(FoodietShape.radiusSm),
+      child: Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _slotColor(meal.slot).withValues(alpha: 0.15),
+                    borderRadius:
+                        BorderRadius.circular(FoodietShape.radiusXs),
+                  ),
+                  child: Text(_slotLabel(meal.slot),
+                      style: FoodietText.caption.copyWith(
+                          color: _slotColor(meal.slot),
+                          fontWeight: FontWeight.w700)),
                 ),
-                child: Text(_slotLabel(meal.slot),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(meal.name,
+                      style: FoodietText.body.copyWith(
+                          color: FoodietColors.warm900,
+                          fontWeight: FontWeight.w700)),
+                ),
+                Text('${meal.kcal}kcal',
+                    style: FoodietText.bodySm.copyWith(
+                        color: FoodietColors.warm700,
+                        fontWeight: FontWeight.w700)),
+                const SizedBox(width: 2),
+                const Icon(Icons.chevron_right_rounded,
+                    size: 16, color: FoodietColors.warm500),
+              ],
+            ),
+            if (meal.recipeBrief.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: Text(meal.recipeBrief,
                     style: FoodietText.caption.copyWith(
-                        color: _slotColor(meal.slot),
-                        fontWeight: FontWeight.w700)),
+                        color: FoodietColors.warm700, height: 1.5)),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(meal.name,
-                    style: FoodietText.body.copyWith(
-                        color: FoodietColors.warm900,
-                        fontWeight: FontWeight.w700)),
-              ),
-              Text('${meal.kcal}kcal',
-                  style: FoodietText.bodySm.copyWith(
-                      color: FoodietColors.warm700,
-                      fontWeight: FontWeight.w700)),
             ],
-          ),
-          if (meal.recipeBrief.isNotEmpty) ...[
-            const SizedBox(height: 4),
+            if (meal.ingredients.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: Wrap(
+                  spacing: 4,
+                  runSpacing: 4,
+                  children: meal.ingredients
+                      .map((g) => Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: FoodietColors.cream100,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(g,
+                                style: FoodietText.caption.copyWith(
+                                    color: FoodietColors.warm700)),
+                          ))
+                      .toList(),
+                ),
+              ),
+            ],
             Padding(
-              padding: const EdgeInsets.only(left: 4),
-              child: Text(meal.recipeBrief,
-                  style: FoodietText.caption.copyWith(
-                      color: FoodietColors.warm700, height: 1.5)),
-            ),
-          ],
-          if (meal.ingredients.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Padding(
-              padding: const EdgeInsets.only(left: 4),
-              child: Wrap(
-                spacing: 4,
-                runSpacing: 4,
-                children: meal.ingredients
-                    .map((g) => Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: FoodietColors.cream100,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(g,
-                              style: FoodietText.caption.copyWith(
-                                  color: FoodietColors.warm700)),
-                        ))
-                    .toList(),
+              padding: const EdgeInsets.only(top: 4, left: 4),
+              child: Text(
+                '탄 ${meal.carbG}g · 단 ${meal.proteinG}g · 지 ${meal.fatG}g',
+                style: FoodietText.caption.copyWith(
+                    color: FoodietColors.warm500, fontSize: 10),
               ),
             ),
           ],
-          Padding(
-            padding: const EdgeInsets.only(top: 4, left: 4),
-            child: Text(
-              '탄 ${meal.carbG}g · 단 ${meal.proteinG}g · 지 ${meal.fatG}g',
-              style: FoodietText.caption.copyWith(
-                  color: FoodietColors.warm500, fontSize: 10),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

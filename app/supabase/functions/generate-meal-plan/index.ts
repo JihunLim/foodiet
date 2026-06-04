@@ -38,6 +38,52 @@ const OPENAI_ENDPOINT =
 
 const DEFAULT_TZ_OFFSET_MIN = 540;
 
+// 음식 이미지 — 네이버 이미지검색(한식 커버리지 우수). 검색 키는 서버 전용.
+// 키 미설정/실패 시 null → 클라이언트가 스타일 헤더로 폴백. (출처 사이트 링크라
+// 상업 출시 전엔 라이선스 이미지로 교체 권장.)
+const NAVER_CLIENT_ID = Deno.env.get('NAVER_CLIENT_ID');
+const NAVER_CLIENT_SECRET = Deno.env.get('NAVER_CLIENT_SECRET');
+
+async function searchFoodImage(name: string): Promise<string | null> {
+  if (!NAVER_CLIENT_ID || !NAVER_CLIENT_SECRET || !name.trim()) return null;
+  try {
+    const url =
+      'https://openapi.naver.com/v1/search/image?display=1&sort=sim&filter=large&query=' +
+      encodeURIComponent(`${name} 음식`);
+    const r = await fetch(url, {
+      headers: {
+        'X-Naver-Client-Id': NAVER_CLIENT_ID,
+        'X-Naver-Client-Secret': NAVER_CLIENT_SECRET,
+      },
+    });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const link = j?.items?.[0]?.link;
+    return typeof link === 'string' && link.startsWith('http') ? link : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+// plan_json 의 각 meal 에 image_url 을 채운다. 이름 중복은 캐시, 베스트에포트.
+async function attachMealImages(planJson: unknown): Promise<void> {
+  if (!NAVER_CLIENT_ID || !NAVER_CLIENT_SECRET) return;
+  const days = (planJson as {
+    days?: Array<{ meals?: Array<Record<string, unknown>> }>;
+  })?.days;
+  if (!Array.isArray(days)) return;
+  const meals: Array<Record<string, unknown>> = [];
+  for (const d of days) {
+    for (const m of d?.meals ?? []) meals.push(m);
+  }
+  const cache = new Map<string, string | null>();
+  await Promise.all(meals.map(async (m) => {
+    const nm = String(m?.name ?? '');
+    if (!cache.has(nm)) cache.set(nm, await searchFoodImage(nm));
+    m.image_url = cache.get(nm) ?? null;
+  }));
+}
+
 const ALLOWED_SLOTS = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 type Slot = typeof ALLOWED_SLOTS[number];
 
@@ -98,7 +144,7 @@ const RESPONSE_SCHEMA = {
                 additionalProperties: false,
                 required: [
                   'slot', 'name', 'kcal', 'carb_g', 'protein_g', 'fat_g',
-                  'ingredients', 'recipe_brief',
+                  'ingredients', 'recipe_brief', 'steps', 'shopping',
                 ],
                 properties: {
                   slot: { type: 'string', enum: ALLOWED_SLOTS as unknown as string[] },
@@ -115,6 +161,27 @@ const RESPONSE_SCHEMA = {
                   recipe_brief: {
                     type: 'string',
                     description: '조리법 1~2문장 (반말).',
+                  },
+                  steps: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: '만드는 방법 단계별 3~6개. 각 한 문장, 반말.',
+                  },
+                  shopping: {
+                    type: 'array',
+                    description: '장보기 목록 — 이 요리에 필요한 재료와 양.',
+                    items: {
+                      type: 'object',
+                      additionalProperties: false,
+                      required: ['name', 'qty'],
+                      properties: {
+                        name: { type: 'string', description: '재료명 (한국식).' },
+                        qty: {
+                          type: 'string',
+                          description: '필요한 양 (예: 200g, 1개, 2큰술).',
+                        },
+                      },
+                    },
                   },
                 },
               },
@@ -297,7 +364,8 @@ Deno.serve(async (req) => {
 - days 는 정확히 7개, date_offset 0~6 (월=0, 일=6).
 - 각 day 의 meals 는 선택한 끼니만 포함하고, 각 끼니 kcal 은 위 끼니별 목표 근처로. day 의 total_kcal 은 그 합(약 ${plannedDaily} kcal).
 - caveats 에는 알레르기·재료 활용 반영 내역을 한 줄씩.
-- weekly_summary 는 이번 주 컨셉을 반말 1~2문장.`;
+- weekly_summary 는 이번 주 컨셉을 반말 1~2문장.
+- 각 meal 의 steps 는 집에서 따라 할 수 있는 만드는 방법 3~6단계(각 한 문장, 반말), shopping 은 그 요리에 필요한 재료와 양(마트에서 살 단위)으로 채워.`;
 
   const body = {
     model: OPENAI_MODEL,
@@ -337,6 +405,9 @@ Deno.serve(async (req) => {
       { status: 502, headers: { 'content-type': 'application/json' } },
     );
   }
+
+  // 각 meal 에 음식 이미지 URL 주입 (네이버 키 있을 때만, 베스트에포트).
+  await attachMealImages(planJson);
 
   const { data: inserted, error: insertErr } = await admin
     .from('meal_plans')
