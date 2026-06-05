@@ -55,10 +55,11 @@ class MealPlanGenerator extends Notifier<MealPlanGenState> {
       ref.invalidate(thisWeekMealPlanProvider);
       state = const MealPlanGenState();
     } catch (_) {
-      // 클라 요청이 타임아웃돼도 서버는 계속 생성 중일 수 있다(이미지 검색 등으로
-      // 길어짐). 잠시 폴링해 plan 이 들어오면 성공 처리, 끝내 없으면 에러.
-      for (var i = 0; i < 6; i++) {
-        await Future<void>.delayed(const Duration(seconds: 4));
+      // 클라 요청이 타임아웃돼도 서버는 계속 생성 중일 수 있다(7일치 상세 생성은
+      // ~80s, 최악 ~150s). edge 한도(150s)를 덮도록 폴링해 plan 이 들어오면 성공
+      // 처리, 끝내 없으면 에러. (성공 경로에선 위 await 가 끝나 폴링은 안 탄다.)
+      for (var i = 0; i < 30; i++) {
+        await Future<void>.delayed(const Duration(seconds: 5));
         try {
           final plan = await svc.fetchThisWeek();
           if (plan != null) {
