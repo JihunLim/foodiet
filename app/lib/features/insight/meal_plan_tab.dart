@@ -24,6 +24,7 @@ class MealPlanTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final planAsync = ref.watch(thisWeekMealPlanProvider);
+    final gen = ref.watch(mealPlanGeneratorProvider);
 
     return RefreshIndicator(
       color: FoodietColors.coral500,
@@ -41,19 +42,24 @@ class MealPlanTab extends ConsumerWidget {
         children: [
           const WaterTrackerCard(),
           const SizedBox(height: FoodietShape.sp16),
-          planAsync.when(
-            loading: () => const Padding(
-              padding: EdgeInsets.symmetric(vertical: 40),
-              child: Center(
-                child: CircularProgressIndicator(
-                    color: FoodietColors.coral500),
+          if (gen.generating)
+            const _GeneratingPlan()
+          else if (gen.error != null)
+            _GenErrorPlan(message: gen.error!)
+          else
+            planAsync.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 40),
+                child: Center(
+                  child: CircularProgressIndicator(
+                      color: FoodietColors.coral500),
+                ),
               ),
+              error: (e, _) => _ErrorPlan(error: e),
+              data: (plan) => plan == null
+                  ? const _EmptyPlan()
+                  : _PlanContent(plan: plan),
             ),
-            error: (e, _) => _ErrorPlan(error: e),
-            data: (plan) => plan == null
-                ? const _EmptyPlan()
-                : _PlanContent(plan: plan),
-          ),
           const SizedBox(height: FoodietShape.sp24),
           // 의학적 조언 아님 + 산출 근거 — App Store 1.4.1 대응.
           Center(
@@ -102,12 +108,7 @@ class _EmptyPlan extends ConsumerWidget {
           const SizedBox(height: FoodietShape.sp16),
           PrimaryButton(
             label: '식단짜기',
-            onPressed: () async {
-              final plan = await showMealPlanFormSheet(context);
-              if (plan != null) {
-                ref.invalidate(thisWeekMealPlanProvider);
-              }
-            },
+            onPressed: () => showMealPlanFormSheet(context),
           ),
         ],
       ),
@@ -128,6 +129,83 @@ class _ErrorPlan extends StatelessWidget {
       ),
       child: Text('식단을 불러오지 못했어: $error',
           style: FoodietText.bodySm.copyWith(color: FoodietColors.warm900)),
+    );
+  }
+}
+
+/// 백그라운드 생성 중 — "푸디가 만들고 있어요".
+class _GeneratingPlan extends StatelessWidget {
+  const _GeneratingPlan();
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(FoodietShape.sp24),
+      decoration: BoxDecoration(
+        color: FoodietColors.cream50,
+        borderRadius: BorderRadius.circular(FoodietShape.radiusLg),
+        border: Border.all(color: FoodietColors.cream100),
+      ),
+      child: Column(
+        children: [
+          const Text('🍳', style: TextStyle(fontSize: 44)),
+          const SizedBox(height: FoodietShape.sp12),
+          Text('푸디가 열심히 식단을 만들고 있어요',
+              textAlign: TextAlign.center,
+              style: FoodietText.title.copyWith(
+                  color: FoodietColors.warm900,
+                  fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Text('30초 정도 걸려. 다 만들어지면 여기에 바로 보여줄게.',
+              textAlign: TextAlign.center,
+              style: FoodietText.bodySm
+                  .copyWith(color: FoodietColors.warm500)),
+          const SizedBox(height: FoodietShape.sp16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: const LinearProgressIndicator(
+              minHeight: 6,
+              color: FoodietColors.coral500,
+              backgroundColor: FoodietColors.cream100,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 백그라운드 생성 실패 — 재시도.
+class _GenErrorPlan extends ConsumerWidget {
+  const _GenErrorPlan({required this.message});
+  final String message;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      padding: const EdgeInsets.all(FoodietShape.sp24),
+      decoration: BoxDecoration(
+        color: FoodietColors.cream50,
+        borderRadius: BorderRadius.circular(FoodietShape.radiusLg),
+        border: Border.all(color: FoodietColors.cream100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Center(child: Text('😢', style: TextStyle(fontSize: 40))),
+          const SizedBox(height: FoodietShape.sp12),
+          Text(message,
+              textAlign: TextAlign.center,
+              style: FoodietText.bodySm
+                  .copyWith(color: FoodietColors.warm700, height: 1.5)),
+          const SizedBox(height: FoodietShape.sp16),
+          PrimaryButton(
+            label: '다시 시도',
+            onPressed: () {
+              ref.read(mealPlanGeneratorProvider.notifier).reset();
+              showMealPlanFormSheet(context);
+            },
+          ),
+        ],
+      ),
     );
   }
 }
@@ -156,12 +234,10 @@ class _PlanContentState extends ConsumerState<_PlanContent> {
     );
   }
 
-  // 식단 다시 만들기 — 폼을 열고, 생성하면 이번 주 plan 을 덮어쓴다(서버에서 처리).
-  Future<void> _regenerate() async {
-    final result = await showMealPlanFormSheet(context);
-    if (result != null && mounted) {
-      ref.invalidate(thisWeekMealPlanProvider);
-    }
+  // 식단 다시 만들기 — 폼을 열면 백그라운드 생성이 시작되고, 진행/완료 표시는
+  // 탭(mealPlanGeneratorProvider)이 처리한다.
+  void _regenerate() {
+    showMealPlanFormSheet(context);
   }
 
   @override

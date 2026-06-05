@@ -72,24 +72,11 @@ class MealDetailPage extends StatelessWidget {
     );
   }
 
+  // 사진 제거 — 끼니색 그라데이션 + 이모지 헤더.
   Widget _imageHeader() {
-    final url = meal.imageUrl;
-    if (url == null || url.isEmpty) return _styledHeader();
-    return Image.network(
-      url,
-      height: 240,
-      width: double.infinity,
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => _styledHeader(),
-      loadingBuilder: (ctx, child, progress) =>
-          progress == null ? child : _styledHeader(loading: true),
-    );
-  }
-
-  Widget _styledHeader({bool loading = false}) {
     final c = _slotColor(meal.slot);
     return Container(
-      height: 240,
+      height: 160,
       width: double.infinity,
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -99,9 +86,7 @@ class MealDetailPage extends StatelessWidget {
         ),
       ),
       alignment: Alignment.center,
-      child: loading
-          ? const CircularProgressIndicator(color: FoodietColors.coral500)
-          : const Text('🍽️', style: TextStyle(fontSize: 64)),
+      child: const Text('🍽️', style: TextStyle(fontSize: 56)),
     );
   }
 
