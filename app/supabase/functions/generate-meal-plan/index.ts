@@ -318,19 +318,21 @@ Deno.serve(async (req) => {
 - weekly_summary 는 이번 주 컨셉을 반말 1~2문장.
 - 각 meal 의 steps 는 요리 초보도 그대로 따라 만들 수 있을 만큼 자세하게 5~9단계로 써(각 단계에 재료 양·불 세기·시간·익힘 정도를 구체적으로, 반말). 한 줄짜리 대충 설명 금지. shopping 은 그 요리에 필요한 재료와 양(마트에서 살 단위)으로 채워.`;
 
-  const body = {
+  const baseBody = {
     model: OPENAI_MODEL,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
     response_format: { type: 'json_schema', json_schema: RESPONSE_SCHEMA },
-    temperature: 0.7,
   };
 
-  let planJson: unknown;
-  try {
-    const resp = await fetch(OPENAI_ENDPOINT, {
+  // 일부 최신 모델(gpt-5.x reasoning 계열)은 temperature 커스텀 값을 거부하고
+  // 기본값(1)만 허용한다. 우선 temperature 0.7 로 보내고, 400 + 'temperature'
+  // 오류면 해당 필드를 빼고 1회 재시도해 모델 교체에도 깨지지 않게 한다.
+  async function callOpenAI(withTemperature: boolean): Promise<Response> {
+    const body = withTemperature ? { ...baseBody, temperature: 0.7 } : baseBody;
+    return await fetch(OPENAI_ENDPOINT, {
       method: 'POST',
       headers: {
         authorization: `Bearer ${OPENAI_API_KEY}`,
@@ -338,9 +340,27 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify(body),
     });
+  }
+
+  let planJson: unknown;
+  try {
+    let resp = await callOpenAI(true);
     if (!resp.ok) {
       const err = await resp.text();
-      console.error('openai error', resp.status, err);
+      if (resp.status === 400 && err.toLowerCase().includes('temperature')) {
+        console.warn('openai rejected temperature — retrying without it');
+        resp = await callOpenAI(false);
+      } else {
+        console.error('openai error', resp.status, err);
+        return new Response(
+          JSON.stringify({ error: 'openai_failed', status: resp.status, detail: err.slice(0, 500) }),
+          { status: 502, headers: { 'content-type': 'application/json' } },
+        );
+      }
+    }
+    if (!resp.ok) {
+      const err = await resp.text();
+      console.error('openai error (retry)', resp.status, err);
       return new Response(
         JSON.stringify({ error: 'openai_failed', status: resp.status, detail: err.slice(0, 500) }),
         { status: 502, headers: { 'content-type': 'application/json' } },
