@@ -132,15 +132,15 @@ class _ErrorPlan extends StatelessWidget {
   }
 }
 
-class _PlanContent extends StatefulWidget {
+class _PlanContent extends ConsumerStatefulWidget {
   const _PlanContent({required this.plan});
   final MealPlan plan;
 
   @override
-  State<_PlanContent> createState() => _PlanContentState();
+  ConsumerState<_PlanContent> createState() => _PlanContentState();
 }
 
-class _PlanContentState extends State<_PlanContent> {
+class _PlanContentState extends ConsumerState<_PlanContent> {
   // 요일별 상세 카드로 스크롤 이동하기 위한 키. 날짜 수만큼 한 번만 생성.
   late final List<GlobalKey> _dayKeys =
       List.generate(widget.plan.days.length, (_) => GlobalKey());
@@ -154,6 +154,14 @@ class _PlanContentState extends State<_PlanContent> {
       curve: Curves.easeInOutCubic,
       alignment: 0.02, // 상단에 살짝 여백 두고 정렬.
     );
+  }
+
+  // 식단 다시 만들기 — 폼을 열고, 생성하면 이번 주 plan 을 덮어쓴다(서버에서 처리).
+  Future<void> _regenerate() async {
+    final result = await showMealPlanFormSheet(context);
+    if (result != null && mounted) {
+      ref.invalidate(thisWeekMealPlanProvider);
+    }
   }
 
   @override
@@ -188,6 +196,30 @@ class _PlanContentState extends State<_PlanContent> {
                         style: FoodietText.title.copyWith(
                             color: FoodietColors.warm900,
                             fontWeight: FontWeight.w700)),
+                  ),
+                  Material(
+                    color: FoodietColors.coral500.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(999),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(999),
+                      onTap: _regenerate,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.refresh_rounded,
+                                size: 14, color: FoodietColors.coral500),
+                            const SizedBox(width: 3),
+                            Text('다시 만들기',
+                                style: FoodietText.caption.copyWith(
+                                    color: FoodietColors.coral500,
+                                    fontWeight: FontWeight.w700)),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
