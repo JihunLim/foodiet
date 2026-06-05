@@ -3,6 +3,17 @@ library;
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+/// 장보기 항목 — 재료명 + 양. 쇼핑 링크는 클라가 name 으로 검색 URL 생성.
+class ShoppingItem {
+  const ShoppingItem({required this.name, required this.qty});
+  final String name;
+  final String qty;
+  factory ShoppingItem.fromJson(Map<String, dynamic> j) => ShoppingItem(
+        name: (j['name'] as String?) ?? '',
+        qty: (j['qty'] as String?) ?? '',
+      );
+}
+
 class MealPlanMeal {
   const MealPlanMeal({
     required this.slot,
@@ -13,6 +24,9 @@ class MealPlanMeal {
     required this.fatG,
     required this.ingredients,
     required this.recipeBrief,
+    this.steps = const [],
+    this.shopping = const [],
+    this.imageUrl,
   });
 
   final String slot; // breakfast | lunch | dinner | snack
@@ -23,6 +37,11 @@ class MealPlanMeal {
   final int fatG;
   final List<String> ingredients;
   final String recipeBrief;
+
+  // 요리 상세 — 식단 생성 시 함께 생성/저장.
+  final List<String> steps; // 만드는 방법 단계별
+  final List<ShoppingItem> shopping; // 재료(수량) + 쇼핑 링크용
+  final String? imageUrl; // 음식 이미지 (없으면 스타일 헤더)
 
   factory MealPlanMeal.fromJson(Map<String, dynamic> j) => MealPlanMeal(
         slot: (j['slot'] as String?) ?? 'breakfast',
@@ -36,6 +55,14 @@ class MealPlanMeal {
                 .toList() ??
             const [],
         recipeBrief: (j['recipe_brief'] as String?) ?? '',
+        steps: (j['steps'] as List?)?.map((e) => e.toString()).toList() ??
+            const [],
+        shopping: (j['shopping'] as List?)
+                ?.map((s) =>
+                    ShoppingItem.fromJson(Map<String, dynamic>.from(s as Map)))
+                .toList() ??
+            const [],
+        imageUrl: j['image_url'] as String?,
       );
 }
 

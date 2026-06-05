@@ -6,12 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/meal_plan_provider.dart';
-import '../../services/meal_plan_service.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/primary_button.dart';
 
-Future<MealPlan?> showMealPlanFormSheet(BuildContext context) {
-  return showModalBottomSheet<MealPlan?>(
+Future<void> showMealPlanFormSheet(BuildContext context) {
+  return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
@@ -55,7 +54,6 @@ class _MealPlanFormSheetState extends ConsumerState<_MealPlanFormSheet> {
   final _ingredientNotes = TextEditingController();
   final Set<String> _styles = <String>{};
   final Set<String> _slots = {'breakfast', 'lunch', 'dinner'};
-  bool _saving = false;
   String? _error;
 
   @override
@@ -65,45 +63,23 @@ class _MealPlanFormSheetState extends ConsumerState<_MealPlanFormSheet> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
-    if (_saving) return;
+  void _submit() {
     if (_slots.isEmpty) {
       setState(() => _error = '포함할 끼니를 1개 이상 골라줘.');
       return;
     }
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-    try {
-      final svc = ref.read(mealPlanServiceProvider);
-      final plan = await svc.generate(
-        allergies: _allergies.toList(),
-        allergyNotes: _allergyNotes.text.trim(),
-        ingredients: _ingredients.toList(),
-        ingredientNotes: _ingredientNotes.text.trim(),
-        cuisineStyles: _styles.toList(),
-        mealSlots: _slots.toList(),
-      );
-      ref.invalidate(thisWeekMealPlanProvider);
-      if (!mounted) return;
-      Navigator.of(context).pop(plan);
-    } on MealPlanAlreadyExistsException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _saving = false;
-        _error = e.message;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _saving = false;
-        _error = '식단을 만드는 데 실패했어: ${_short(e.toString())}';
-      });
-    }
+    // 백그라운드 생성 시작 후 시트를 바로 닫는다. 진행 상태("푸디가 만들고
+    // 있어요")는 식단추천 탭이 mealPlanGeneratorProvider 로 보여준다.
+    ref.read(mealPlanGeneratorProvider.notifier).start(
+          allergies: _allergies.toList(),
+          allergyNotes: _allergyNotes.text.trim(),
+          ingredients: _ingredients.toList(),
+          ingredientNotes: _ingredientNotes.text.trim(),
+          cuisineStyles: _styles.toList(),
+          mealSlots: _slots.toList(),
+        );
+    Navigator.of(context).pop();
   }
-
-  String _short(String s) => s.length > 100 ? '${s.substring(0, 100)}…' : s;
 
   @override
   Widget build(BuildContext context) {
@@ -144,7 +120,7 @@ class _MealPlanFormSheetState extends ConsumerState<_MealPlanFormSheet> {
                       .copyWith(color: FoodietColors.warm900)),
               const SizedBox(height: 4),
               Text(
-                '입력 정보로 AI 가 7일치 식단을 만들어. 한 주에 한 번만 만들 수 있어.',
+                '입력 정보로 AI 가 7일치 식단을 만들어줘. 만드는 데 30초 정도 걸려.',
                 style: FoodietText.caption
                     .copyWith(color: FoodietColors.warm500),
               ),
@@ -214,13 +190,14 @@ class _MealPlanFormSheetState extends ConsumerState<_MealPlanFormSheet> {
               ],
 
               PrimaryButton(
-                label: _saving ? '식단 짜는 중…' : '식단짜기',
-                onPressed: _saving ? null : _submit,
+                label: '식단 만들기',
+                onPressed: _submit,
               ),
               const SizedBox(height: 6),
               Center(
                 child: Text(
-                  '한 주에 한 번만 짤 수 있어. 식단 짜는 데 30초 정도 걸려.',
+                  '만들기를 누르면 닫히고, 식단추천 화면에서 푸디가 만드는 동안 기다리면 돼.',
+                  textAlign: TextAlign.center,
                   style: FoodietText.caption
                       .copyWith(color: FoodietColors.warm500),
                 ),
