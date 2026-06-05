@@ -221,6 +221,48 @@ Deno.serve(async (req) => {
     `${String(local.getUTCHours()).padStart(2, '0')}:` +
     `${String(local.getUTCMinutes()).padStart(2, '0')}`;
 
+  // ── 안티-셰임 가드 (특수 상태는 LLM 대신 결정적 메시지로 보장) ──────────
+  // 톤·안전이 중요한 분기라 LLM 변동에 맡기지 않고 고정 문구로 반환한다.
+  const localHourNow = local.getUTCHours(); // local 은 offset shift 된 Date.
+
+  // (1) 끊김 회복: 오늘 기록 0건 + 마지막 기록이 3일+ 전 → 따뜻한 환영.
+  if (eaten.length === 0) {
+    const { data: lastRows } = await admin
+      .from('entries')
+      .select('captured_at')
+      .eq('user_id', userId)
+      .eq('status', 'done')
+      .lt('captured_at', startOfTodayUtc(tzOffsetMin))
+      .order('captured_at', { ascending: false })
+      .limit(1);
+    const lastBefore = lastRows?.[0]?.captured_at as string | undefined;
+    if (lastBefore) {
+      const gapDays = Math.floor(
+        (Date.now() - new Date(lastBefore).getTime()) / 86400000,
+      );
+      if (gapDays >= 3) {
+        return new Response(JSON.stringify(welcomeBack(nickname, gapDays)), {
+          headers: {
+            'content-type': 'application/json',
+            'x-foodiet-state': 'welcome-back',
+          },
+        });
+      }
+    }
+  } else if (localHourNow >= 21 && kcalConsumed > 0 && kcalConsumed < 800) {
+    // (2) §10.3 극단 절식 가드 — 늦은 시각 + 오늘 섭취가 매우 적음.
+    //     "적게 먹어 잘했다" 축하 금지. 미기록일 수도 있으니 비난 없이 챙김 권유.
+    return new Response(
+      JSON.stringify(careLowIntake(nickname, kcalConsumed < 500)),
+      {
+        headers: {
+          'content-type': 'application/json',
+          'x-foodiet-state': 'care-low-intake',
+        },
+      },
+    );
+  }
+
   // ── 캐시 + 레이트리밋 ────────────────────────────────────────────────
   // coach_messages 에 `scope='daily'`, `body_json.kind='home_coach'` 로 저장.
   // 같은 시그니처(= done 엔트리 수·kcal 합) 면 캐시 재사용, 하루 5회 초과 시에도
@@ -403,6 +445,38 @@ ${
     headers: { 'content-type': 'application/json' },
   });
 });
+
+// ── 안티-셰임 결정적 메시지 (LLM 대신 고정 문구) ───────────────────────
+// 금지어(실패/어겼다/망쳤다/해주세요) 없이 작성. 푸디 반말 톤.
+
+// 끊김 회복 — 며칠 쉬고 돌아온 사용자를 혼내지 않고 환영한다.
+function welcomeBack(nickname: string, days: number): CoachResult {
+  return {
+    emoji: '🌱',
+    headline: '다시 와줘서 반가워!',
+    review:
+      `${nickname}야, ${days}일 만이네. 며칠 쉬었어도 정말 괜찮아 — ` +
+      '다이어트는 완벽하게가 아니라 다시 돌아오는 게 진짜야.',
+    next_tip: '오늘은 거창하지 않아도 돼. 사진 한 장으로 가볍게 다시 시작해보자.',
+    focus: '다시 시작',
+  };
+}
+
+// §10.3 극단 절식 가드 — 적게 먹은 걸 칭찬하지 않고 부드럽게 챙김을 권한다.
+// extreme(아주 적음)이면 혼자 버겁지 않게 가벼운 상담 권유를 덧붙인다.
+function careLowIntake(nickname: string, extreme: boolean): CoachResult {
+  return {
+    emoji: '🌿',
+    headline: '오늘은 천천히 가도 돼',
+    review: extreme
+      ? `${nickname}야, 오늘 먹은 게 많이 적네. 못 챙긴 거면 지금이라도 가볍게 먹자. ` +
+        '혼자 버겁다면 가까운 사람이나 전문가에게 얘기하는 것도 괜찮아 🌷'
+      : '오늘 기록이 좀 적네. 더 먹은 게 있으면 추가해줘. ' +
+        '일부러 적게 먹는 거라도 너무 무리하면 오히려 더 힘들어져.',
+    next_tip: '에너지가 부족하면 다이어트도 흔들려. 단백질이랑 따뜻한 국물로 가볍게라도 챙기자.',
+    focus: '충분히 먹기',
+  };
+}
 
 // 응답에는 kind/signature/persona 같은 내부 메타를 빼고 advice 필드만 돌려준다.
 function stripMeta(body: Record<string, unknown>): CoachResult {
