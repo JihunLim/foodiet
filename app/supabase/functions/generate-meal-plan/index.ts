@@ -299,17 +299,10 @@ Deno.serve(async (req) => {
   const cuisineStyles = sanitizeStrArray(reqBody?.cuisine_styles, 6);
   const slots = sanitizeSlots(reqBody?.meal_slots);
 
-  // 이번 주 plan 이 이미 있으면 덮어쓴다 (재생성/갱신 허용).
-  // 주의: 원래 "주 1회" 비용 가드를 푼 것 — 필요하면 409 로 다시 막을 수 있음.
-  const { data: existing } = await admin
-    .from('meal_plans')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('week_start_date', weekStart)
-    .maybeSingle();
-  if (existing) {
-    await admin.from('meal_plans').delete().eq('id', existing.id);
-  }
+  // 재생성/갱신은 "비파괴적"으로 한다. 기존 plan 을 미리 지우지 않는다 —
+  // 생성이 실패해도(OpenAI 504/네트워크 등) 기존 식단이 그대로 남도록, 아래에서
+  // 성공했을 때만 upsert(user_id,week_start_date)로 원자적으로 덮어쓴다.
+  // (예전엔 먼저 delete 후 ~80s 생성 → 생성 실패 시 식단이 통째로 사라졌다.)
 
   const { data: profile } = await admin
     .from('profiles')
@@ -513,7 +506,7 @@ ${planned}`;
 
   const { data: inserted, error: insertErr } = await admin
     .from('meal_plans')
-    .insert({
+    .upsert({
       user_id: userId,
       week_start_date: weekStart,
       allergies,
@@ -529,7 +522,7 @@ ${planned}`;
       plan_json: planJson,
       source_model: OPENAI_MODEL,
       status: 'done',
-    })
+    }, { onConflict: 'user_id,week_start_date' })
     .select('id, week_start_date, plan_json, source_model, created_at')
     .single();
 
