@@ -286,7 +286,8 @@ Deno.serve(async (req) => {
   const cuisineStyles = sanitizeStrArray(reqBody?.cuisine_styles, 6);
   const slots = sanitizeSlots(reqBody?.meal_slots);
 
-  // 이번 주 plan 이 이미 있으면 409.
+  // 이번 주 plan 이 이미 있으면 덮어쓴다 (재생성/갱신 허용).
+  // 주의: 원래 "주 1회" 비용 가드를 푼 것 — 필요하면 409 로 다시 막을 수 있음.
   const { data: existing } = await admin
     .from('meal_plans')
     .select('id')
@@ -294,15 +295,7 @@ Deno.serve(async (req) => {
     .eq('week_start_date', weekStart)
     .maybeSingle();
   if (existing) {
-    return new Response(
-      JSON.stringify({
-        error: 'already_exists_this_week',
-        message: '이번 주 식단은 이미 만들었어. 다음 주에 새로 짤 수 있어.',
-        id: existing.id,
-        week_start_date: weekStart,
-      }),
-      { status: 409, headers: { 'content-type': 'application/json' } },
-    );
+    await admin.from('meal_plans').delete().eq('id', existing.id);
   }
 
   const { data: profile } = await admin

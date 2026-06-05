@@ -426,9 +426,6 @@ class _WeekTable extends StatelessWidget {
                           color: FoodietColors.warm900,
                           fontWeight: FontWeight.w700)),
                 ),
-                Text('탭하면 이동',
-                    style: FoodietText.caption
-                        .copyWith(color: FoodietColors.warm500)),
               ],
             ),
           ),
