@@ -75,6 +75,19 @@ class ProfilePage extends ConsumerWidget {
             ),
             const SizedBox(height: FoodietShape.sp16),
 
+            // 기록 — 즐겨찾기 등 빠른 기록 관리.
+            _MenuGroup(
+              title: '기록',
+              children: [
+                _MenuItem(
+                  icon: Icons.star_outline_rounded,
+                  label: '즐겨찾기 관리',
+                  onTap: () => context.push('/favorites'),
+                ),
+              ],
+            ),
+            const SizedBox(height: FoodietShape.sp16),
+
             // 커뮤니티 — 그룹 관련 알림성 진입.
             _MenuGroup(
               title: '커뮤니티',

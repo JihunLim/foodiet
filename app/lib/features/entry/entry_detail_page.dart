@@ -12,6 +12,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../providers/entries_provider.dart';
+import '../../providers/favorites_provider.dart';
 import '../../providers/supabase_provider.dart';
 import '../../supabase/client.dart';
 import '../../theme/foodiet_tokens.dart';
@@ -26,6 +27,7 @@ class EntryDetailPage extends ConsumerWidget {
     final async = ref.watch(entryDetailProvider(entryId));
     // pending 동안 3초마다 자동 새로고침 (Realtime 폴백).
     ref.watch(pendingEntryDetailPollProvider(entryId));
+    final favs = ref.watch(favoritesProvider).valueOrNull ?? const <Favorite>[];
 
     return Scaffold(
       backgroundColor: FoodietColors.cream00,
@@ -41,39 +43,68 @@ class EntryDetailPage extends ConsumerWidget {
         ),
         actions: [
           async.when(
-            data: (d) => d == null
-                ? const SizedBox.shrink()
-                : PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert_rounded,
-                        color: FoodietColors.warm900),
-                    onSelected: (v) async {
-                      if (v == 'delete') {
-                        await _confirmAndDelete(context, ref, d.entry);
-                      } else if (v == 'edit') {
-                        await _openEditSheet(context, ref, d.entry);
-                      }
-                    },
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(
-                        value: 'edit',
-                        child: Row(children: [
-                          Icon(Icons.edit_outlined, size: 18),
-                          SizedBox(width: 10),
-                          Text('수정'),
-                        ]),
-                      ),
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Row(children: [
-                          Icon(Icons.delete_outline,
-                              size: 18, color: FoodietColors.danger),
-                          SizedBox(width: 10),
-                          Text('삭제',
-                              style: TextStyle(color: FoodietColors.danger)),
-                        ]),
-                      ),
-                    ],
+            data: (d) {
+              if (d == null) return const SizedBox.shrink();
+              final entry = d.entry;
+              final name = (entry.title ?? '').trim();
+              // 분석이 끝나 이름이 있는 기록만 즐겨찾기 가능.
+              final favoritable = entry.status == 'done' && name.isNotEmpty;
+              Favorite? existing;
+              for (final f in favs) {
+                if (f.name == name) {
+                  existing = f;
+                  break;
+                }
+              }
+              final isFav = existing != null;
+              return PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert_rounded,
+                    color: FoodietColors.warm900),
+                onSelected: (v) async {
+                  if (v == 'delete') {
+                    await _confirmAndDelete(context, ref, entry);
+                  } else if (v == 'edit') {
+                    await _openEditSheet(context, ref, entry);
+                  } else if (v == 'favorite') {
+                    await _toggleFavorite(context, ref, entry, existing);
+                  }
+                },
+                itemBuilder: (_) => [
+                  if (favoritable)
+                    PopupMenuItem(
+                      value: 'favorite',
+                      child: Row(children: [
+                        Icon(
+                            isFav
+                                ? Icons.star_rounded
+                                : Icons.star_border_rounded,
+                            size: 18,
+                            color: FoodietColors.coral500),
+                        const SizedBox(width: 10),
+                        Text(isFav ? '즐겨찾기 해제' : '즐겨찾기에 추가'),
+                      ]),
+                    ),
+                  const PopupMenuItem(
+                    value: 'edit',
+                    child: Row(children: [
+                      Icon(Icons.edit_outlined, size: 18),
+                      SizedBox(width: 10),
+                      Text('수정'),
+                    ]),
                   ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Row(children: [
+                      Icon(Icons.delete_outline,
+                          size: 18, color: FoodietColors.danger),
+                      SizedBox(width: 10),
+                      Text('삭제',
+                          style: TextStyle(color: FoodietColors.danger)),
+                    ]),
+                  ),
+                ],
+              );
+            },
             loading: () => const SizedBox.shrink(),
             error: (_, __) => const SizedBox.shrink(),
           ),
@@ -939,6 +970,34 @@ class _StepBtn extends StatelessWidget {
             color: enabled ? Colors.white : FoodietColors.warm500),
       ),
     );
+  }
+}
+
+// ── 즐겨찾기 토글 ────────────────────────────────────────────────────
+
+Future<void> _toggleFavorite(
+    BuildContext context, WidgetRef ref, Entry entry, Favorite? existing) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final service = ref.read(favoritesServiceProvider);
+  try {
+    if (existing != null) {
+      await service.removeById(existing.id, imagePath: existing.imagePath);
+      ref.invalidate(favoritesProvider);
+      messenger
+        ..clearSnackBars()
+        ..showSnackBar(const SnackBar(content: Text('즐겨찾기에서 뺐어')));
+    } else {
+      final fav = await service.addFromEntry(entry);
+      ref.invalidate(favoritesProvider);
+      messenger
+        ..clearSnackBars()
+        ..showSnackBar(
+            SnackBar(content: Text("'${fav.name}' 빠른 기록에 추가했어 ⭐")));
+    }
+  } catch (e) {
+    messenger
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(content: Text('실패했어: $e')));
   }
 }
 

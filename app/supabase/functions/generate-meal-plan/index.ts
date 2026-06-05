@@ -41,6 +41,22 @@ const DEFAULT_TZ_OFFSET_MIN = 540;
 const ALLOWED_SLOTS = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 type Slot = typeof ALLOWED_SLOTS[number];
 
+// 끼니별 하루 칼로리 비율 — 아침·점심·저녁은 모두 먹는다고 가정해 각각 약 1/3,
+// 간식은 작은 추가분. 선택한 끼니만 만들되, 선택 안 한 끼니의 몫을 다른 끼니에
+// 합쳐 키우지 않는다 (예: 저녁만 선택 → 저녁은 하루의 약 1/3 으로 구성).
+const SLOT_FRACTION: Record<Slot, number> = {
+  breakfast: 0.33,
+  lunch: 0.33,
+  dinner: 0.34,
+  snack: 0.10,
+};
+const SLOT_LABEL_KO: Record<Slot, string> = {
+  breakfast: '아침',
+  lunch: '점심',
+  dinner: '저녁',
+  snack: '간식',
+};
+
 const RESPONSE_SCHEMA = {
   name: 'foodiet_meal_plan',
   strict: true,
@@ -235,6 +251,15 @@ Deno.serve(async (req) => {
   const dietRestr = Array.isArray(profile?.diet_restrictions)
     ? (profile!.diet_restrictions as string[]) : [];
 
+  // 끼니별 목표 칼로리 — 하루 목표에서 고정 비율만 배정. 선택한 끼니 합이
+  // plannedDaily (하루 목표보다 작을 수 있음 = 정상).
+  const slotKcal = slots.map((s) => ({
+    label: SLOT_LABEL_KO[s],
+    kcal: Math.round(target * SLOT_FRACTION[s]),
+  }));
+  const slotTargetsStr = slotKcal.map((x) => `${x.label} ${x.kcal}kcal`).join(', ');
+  const plannedDaily = slotKcal.reduce((sum, x) => sum + x.kcal, 0);
+
   const systemPrompt = `당신은 Foodiet 앱의 영양 코치 "푸디"예요.
 한국어 반말 + 친근한 톤으로, 일반인 대상 균형 잡힌 식단을 제안합니다.
 
@@ -242,7 +267,9 @@ Deno.serve(async (req) => {
 - 의료·치료적 조언 금지. 일반적인 영양 균형 가이드만.
 - 알레르기에 등재된 재료는 어떤 형태로도 들어가면 안 돼.
 - 사용자가 보유한 재료를 우선 활용. 부족한 건 마트에서 쉽게 살 수 있는 한국 식재료로 보완.
-- 매일 ${target} kcal 합 ±10% 안에 들도록 배분.
+- 아침·점심·저녁을 모두 먹는다고 가정하고, 끼니마다 하루 목표(${target} kcal)의 정해진 비율만 차지해요(아침·점심·저녁 각 약 1/3, 간식 약 10%). 선택 안 한 끼니의 칼로리를 선택한 끼니에 합쳐서 키우면 절대 안 돼요.
+- 끼니별 목표 칼로리(각 ±15% 이내로): ${slotTargetsStr}.
+- 각 day 의 total_kcal 은 선택한 끼니들의 합(약 ${plannedDaily} kcal)이며, 하루 목표(${target} kcal)보다 작아도 정상이에요. 억지로 ${target} 에 맞추지 마세요.
 - 같은 메뉴를 7일 동안 두 번 이상 반복하지 마세요.
 - 사용자가 선택한 끼니(${slots.join(', ')})만 채우세요. 그 외 슬롯은 비웁니다.
 - 응답은 JSON 스키마에만 엄격히 맞추세요.`;
@@ -263,11 +290,12 @@ Deno.serve(async (req) => {
 냉장고 재료(기타): ${ingredientNotes || '없음'}
 선호 식단 스타일: ${cuisineStyles.length ? cuisineStyles.join(', ') : '특별한 선호 없음'}
 포함할 끼니: ${slots.join(', ')}
+끼니별 목표 칼로리: ${slotTargetsStr} (각 끼니는 이 값 근처로, 선택 안 한 끼니 몫을 합치지 말 것)
 
 [요청]
 이번 주(월~일) 7일치 식단을 JSON 으로 만들어줘.
 - days 는 정확히 7개, date_offset 0~6 (월=0, 일=6).
-- 각 day 의 meals 는 사용자가 선택한 끼니만 포함.
+- 각 day 의 meals 는 선택한 끼니만 포함하고, 각 끼니 kcal 은 위 끼니별 목표 근처로. day 의 total_kcal 은 그 합(약 ${plannedDaily} kcal).
 - caveats 에는 알레르기·재료 활용 반영 내역을 한 줄씩.
 - weekly_summary 는 이번 주 컨셉을 반말 1~2문장.`;
 

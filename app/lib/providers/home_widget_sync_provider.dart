@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/home_widget_service.dart';
 import 'entries_provider.dart';
+import 'favorites_provider.dart';
 import 'home_coach_provider.dart';
 import 'profile_provider.dart';
 
@@ -19,6 +20,8 @@ final homeWidgetSyncProvider = Provider.autoDispose<void>((ref) {
   final profile = ref.watch(profileProvider).valueOrNull;
   final entries = ref.watch(todayEntriesProvider).valueOrNull ?? const <Entry>[];
   final coach = ref.watch(homeCoachProvider).valueOrNull;
+  final favorites =
+      ref.watch(favoritesProvider).valueOrNull ?? const <Favorite>[];
 
   if (profile == null) return;
 
@@ -53,6 +56,13 @@ final homeWidgetSyncProvider = Provider.autoDispose<void>((ref) {
         : '다음 끼니엔 단백질을 챙겨보자.'),
     entryCount: entries.length,
     updatedAt: DateTime.now(),
+    // 위젯 빠른 기록 — 가장 최근에 고정한 즐겨찾기 상위 2개.
+    fav1Id: favorites.isNotEmpty ? favorites[0].id : '',
+    fav1Name: favorites.isNotEmpty ? favorites[0].name : '',
+    fav1Kcal: favorites.isNotEmpty ? (favorites[0].kcalTotal ?? 0) : 0,
+    fav2Id: favorites.length > 1 ? favorites[1].id : '',
+    fav2Name: favorites.length > 1 ? favorites[1].name : '',
+    fav2Kcal: favorites.length > 1 ? (favorites[1].kcalTotal ?? 0) : 0,
   );
 
   // fire-and-forget — 위젯 실패로 UI 가 멈추면 안 됨.

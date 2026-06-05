@@ -25,6 +25,7 @@ import '../../theme/foodiet_tokens.dart';
 import '../../widgets/ai_coach_card.dart';
 import '../../widgets/foodie_bubble.dart';
 import '../../widgets/signed_network_image.dart';
+import 'quick_record_chips.dart';
 
 class HomeTodayPage extends ConsumerStatefulWidget {
   const HomeTodayPage({super.key});
@@ -113,6 +114,9 @@ class _HomeTodayPageState extends ConsumerState<HomeTodayPage> {
                 ),
 
               const SizedBox(height: FoodietShape.sp24),
+
+              // 빠른 기록 — 즐겨찾기가 있을 때만 칩 행을 노출 (없으면 shrink).
+              const QuickRecordChips(),
 
               Text('오늘 타임라인',
                   style: FoodietText.title

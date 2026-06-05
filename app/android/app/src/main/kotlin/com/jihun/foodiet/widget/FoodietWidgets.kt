@@ -10,6 +10,7 @@ import android.net.Uri
 import android.widget.RemoteViews
 import com.jihun.foodiet.MainActivity
 import com.jihun.foodiet.R
+import es.antonborri.home_widget.HomeWidgetLaunchIntent
 import es.antonborri.home_widget.HomeWidgetPlugin
 
 /**
@@ -28,7 +29,9 @@ private const val HOST = "widget"
 private fun launchIntent(context: Context, target: String): PendingIntent {
     val uri = Uri.parse("$SCHEME://$HOST/$target")
     val intent = Intent(context, MainActivity::class.java).apply {
-        action = Intent.ACTION_VIEW
+        // home_widget 의 widgetClicked/initiallyLaunchedFromHomeWidget 는
+        // 이 LAUNCH 액션일 때만 동작한다 (ACTION_VIEW 면 URI 가 Flutter 로 전달 안 됨).
+        action = HomeWidgetLaunchIntent.HOME_WIDGET_LAUNCH_ACTION
         data = uri
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
     }
@@ -40,7 +43,29 @@ private fun launchIntent(context: Context, target: String): PendingIntent {
     )
 }
 
-/** 빠른 기록 위젯 — 탭 → 카메라 화면 바로. */
+/**
+ * 빠른 기록 딥링크 — `foodiet://widget/log?fav=<id>`.
+ * 앱을 열고 즐겨찾기를 사진/분석 없이 즉시 기록한다 (main.dart 가 처리).
+ * favId 별로 requestCode 를 달리해 PendingIntent 충돌을 막는다.
+ */
+private fun quickLogIntent(context: Context, favId: String): PendingIntent {
+    val uri = Uri.parse("$SCHEME://$HOST/log?fav=$favId")
+    val intent = Intent(context, MainActivity::class.java).apply {
+        // home_widget 의 widgetClicked/initiallyLaunchedFromHomeWidget 는
+        // 이 LAUNCH 액션일 때만 동작한다 (ACTION_VIEW 면 URI 가 Flutter 로 전달 안 됨).
+        action = HomeWidgetLaunchIntent.HOME_WIDGET_LAUNCH_ACTION
+        data = uri
+        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+    }
+    return PendingIntent.getActivity(
+        context,
+        ("log:$favId").hashCode(),
+        intent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+}
+
+/** 빠른 기록 위젯 — 탭 → 카메라 화면 바로 + 즐겨찾기 1탭 재기록. */
 class QuickLogWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(
         context: Context,
@@ -57,8 +82,30 @@ class QuickLogWidgetProvider : AppWidgetProvider() {
                 R.id.fd_quick_log_root,
                 launchIntent(context, "camera"),
             )
+            bindFavorite(context, views, prefs, R.id.fd_ql_fav1, "fav1_id", "fav1_name")
+            bindFavorite(context, views, prefs, R.id.fd_ql_fav2, "fav2_id", "fav2_name")
             appWidgetManager.updateAppWidget(id, views)
         }
+    }
+
+    /** 즐겨찾기 한 줄 바인딩 — 데이터가 있으면 VISIBLE + 재기록 PendingIntent. */
+    private fun bindFavorite(
+        context: Context,
+        views: RemoteViews,
+        prefs: android.content.SharedPreferences,
+        viewId: Int,
+        idKey: String,
+        nameKey: String,
+    ) {
+        val favId = prefs.getString(idKey, "") ?: ""
+        val favName = prefs.getString(nameKey, "") ?: ""
+        if (favId.isEmpty() || favName.isEmpty()) {
+            views.setViewVisibility(viewId, android.view.View.GONE)
+            return
+        }
+        views.setViewVisibility(viewId, android.view.View.VISIBLE)
+        views.setTextViewText(viewId, "↻ $favName")
+        views.setOnClickPendingIntent(viewId, quickLogIntent(context, favId))
     }
 }
 

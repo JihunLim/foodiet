@@ -15,6 +15,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kakao_flutter_sdk_common/kakao_flutter_sdk_common.dart';
 
 import 'config/env.dart';
+import 'providers/entries_provider.dart';
+import 'providers/favorites_provider.dart';
 import 'providers/fcm_provider.dart';
 import 'providers/router_provider.dart';
 import 'services/ads_service.dart';
@@ -131,12 +133,51 @@ class _FoodietAppState extends ConsumerState<FoodietApp> {
         case 'camera':
           router.go('/camera');
           break;
+        case 'log':
+          // 위젯 빠른 기록 — foodiet://widget/log?fav=<id>.
+          // 앱은 홈으로 보내고 즐겨찾기를 사진/분석 없이 즉시 기록한다.
+          router.go('/home');
+          final favId = uri.queryParameters['fav'];
+          if (favId != null && favId.isNotEmpty) {
+            _quickLogFromWidget(favId);
+          }
+          break;
         case 'coach':
         case 'home':
           router.go('/home');
           break;
       }
     });
+  }
+
+  /// 위젯에서 들어온 즐겨찾기 1탭 재기록을 수행하고 실행취소 스낵바를 띄운다.
+  /// 미로그인이면 라우터 redirect 가 로그인으로 보내고 기록은 조용히 건너뛴다.
+  Future<void> _quickLogFromWidget(String favId) async {
+    final service = ref.read(favoritesServiceProvider);
+    try {
+      final recorded = await service.recordFavoriteById(favId);
+      ref.invalidate(todayEntriesProvider);
+      ref.invalidate(recentEntriesProvider);
+      _messengerKey.currentState
+        ?..clearSnackBars()
+        ..showSnackBar(SnackBar(
+          content: Text('기록했어 · ${recorded.name}'),
+          action: SnackBarAction(
+            label: '실행취소',
+            onPressed: () async {
+              await service.deleteEntry(recorded.entryId, recorded.imagePath);
+              ref.invalidate(todayEntriesProvider);
+              ref.invalidate(recentEntriesProvider);
+            },
+          ),
+        ));
+    } catch (e) {
+      if (kDebugMode) debugPrint('[widget] quick log failed: $e');
+      _messengerKey.currentState
+        ?..clearSnackBars()
+        ..showSnackBar(const SnackBar(
+            content: Text('기록하지 못했어. 앱에서 다시 시도해줘.')));
+    }
   }
 
   @override

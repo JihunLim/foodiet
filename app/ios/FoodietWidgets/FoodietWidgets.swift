@@ -47,6 +47,13 @@ struct FoodietSnapshot {
     let coachHeadline: String
     let coachTip: String
     let entryCount: Int
+    // 빠른 기록 — 위젯에서 1탭 재기록할 즐겨찾기 상위 2개 (없으면 빈 값).
+    let fav1Id: String
+    let fav1Name: String
+    let fav1Kcal: Int
+    let fav2Id: String
+    let fav2Name: String
+    let fav2Kcal: Int
 
     static let placeholder = FoodietSnapshot(
         nickname: "후니",
@@ -59,7 +66,13 @@ struct FoodietSnapshot {
         coachEmoji: "🍓",
         coachHeadline: "탄수 80g 남았어!",
         coachTip: "저녁은 단백질 위주로 가볼까?",
-        entryCount: 2
+        entryCount: 2,
+        fav1Id: "",
+        fav1Name: "",
+        fav1Kcal: 0,
+        fav2Id: "",
+        fav2Name: "",
+        fav2Kcal: 0
     )
 
     static func load() -> FoodietSnapshot {
@@ -80,7 +93,13 @@ struct FoodietSnapshot {
             coachEmoji: str("coach_emoji", "🍓"),
             coachHeadline: str("coach_headline", "오늘도 한 장씩 기록해볼까?"),
             coachTip: str("coach_tip", "첫 사진 한 장으로 푸디의 조언을 받아봐."),
-            entryCount: int("entry_count")
+            entryCount: int("entry_count"),
+            fav1Id: str("fav1_id", ""),
+            fav1Name: str("fav1_name", ""),
+            fav1Kcal: int("fav1_kcal"),
+            fav2Id: str("fav2_id", ""),
+            fav2Name: str("fav2_name", ""),
+            fav2Kcal: int("fav2_kcal")
         )
     }
 }
@@ -107,8 +126,15 @@ struct FoodietProvider: TimelineProvider {
 
 // MARK: - Helpers
 
+// home_widget 0.6.0 은 쿼리 파라미터 `homeWidget` 가 있어야만 위젯 링크로 인식해
+// widgetClicked / initiallyLaunchedFromHomeWidget 로 전달한다 (isWidgetUrl 게이트).
 private func deepLink(_ target: String) -> URL {
-    URL(string: "foodiet://widget/\(target)")!
+    URL(string: "foodiet://widget/\(target)?homeWidget")!
+}
+
+/// 위젯 빠른 기록 딥링크 — 앱을 열고 즐겨찾기를 즉시 기록한다.
+private func quickLogLink(_ favId: String) -> URL {
+    URL(string: "foodiet://widget/log?fav=\(favId)&homeWidget")!
 }
 
 private extension View {
@@ -145,6 +171,9 @@ struct QuickLogWidgetView: View {
                 .background(FD.coral500)
                 .cornerRadius(12)
                 .padding(.top, 4)
+            // 빠른 기록(즐겨찾기) 버튼은 systemSmall 에 못 넣는다 — small 위젯은
+            // 전체가 단일 탭 영역(widgetURL)이라 Link 가 무시된다. 즐겨찾기 1탭
+            // 재기록은 systemMedium 인 RemainingWidget 에 Link 로 배치한다.
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .widgetURL(deepLink("camera"))
@@ -205,10 +234,32 @@ struct RemainingWidgetView: View {
                 macroChip(label: "지방", value: s.fatG,
                           bg: FD.mealDinner.opacity(0.18), fg: FD.mealDinner)
             }
+            // 빠른 기록 — 즐겨찾기 1탭 재기록. systemMedium 이라 Link 가 별도 탭
+            // 영역으로 동작한다(small 과 달리). 앱을 열어 즉시 기록한다.
+            if !s.fav1Id.isEmpty || !s.fav2Id.isEmpty {
+                HStack(spacing: 6) {
+                    if !s.fav1Id.isEmpty { favLink(s.fav1Id, s.fav1Name) }
+                    if !s.fav2Id.isEmpty { favLink(s.fav2Id, s.fav2Name) }
+                    Spacer(minLength: 0)
+                }
+            }
         }
         .padding(14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .widgetURL(deepLink("home"))
+    }
+
+    private func favLink(_ favId: String, _ name: String) -> some View {
+        Link(destination: quickLogLink(favId)) {
+            Text("↻ \(name)")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(FD.coral500)
+                .lineLimit(1)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(FD.coral100)
+                .cornerRadius(8)
+        }
     }
 
     private func macroChip(label: String, value: Int, bg: Color, fg: Color) -> some View {
