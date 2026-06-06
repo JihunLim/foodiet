@@ -7,7 +7,7 @@
 // 순서
 //   1) entries row 조회 (service role — RLS 우회)
 //   2) food-photos 버킷에서 서명 URL 생성 (5분)
-//   3) OpenAI gpt-5.4-mini Vision 호출 (response_format: json_schema)
+//   3) OpenAI gpt-5.5 Vision 호출 (response_format: json_schema)
 //   4) entries UPDATE + entry_items 다중 INSERT
 //   5) 신뢰도 낮거나 meal_slot 경계시간이면 coach_messages 로 "확인해줘" 전송
 //
@@ -15,7 +15,7 @@
 //   SUPABASE_URL
 //   SUPABASE_SERVICE_ROLE_KEY
 //   OPENAI_API_KEY
-//   OPENAI_MODEL           (default 'gpt-5.4-mini')
+//   OPENAI_MODEL           (default 'gpt-5.5')
 //   OPENAI_ENDPOINT        (default 'https://api.openai.com/v1/chat/completions')
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -27,10 +27,45 @@ const admin = createClient(
 );
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!;
-const OPENAI_MODEL = Deno.env.get('OPENAI_MODEL') ?? 'gpt-5.4-mini';
+const OPENAI_MODEL = Deno.env.get('OPENAI_MODEL') ?? 'gpt-5.5';
 const OPENAI_ENDPOINT =
   Deno.env.get('OPENAI_ENDPOINT') ?? 'https://api.openai.com/v1/chat/completions';
 const BUCKET = 'food-photos';
+
+// OpenAI chat completions 호출. gpt-5.x(reasoning 계열)은 temperature 를 거부하므로
+// 보내지 않고, 모델이 거부하는 선택 파라미터(reasoning_effort 등)는 400 응답을 보고
+// 그 키만 떨군 뒤 재시도한다. generate-meal-plan 과 동일한 패턴.
+async function openaiChat(
+  base: Record<string, unknown>,
+  params: Record<string, unknown>,
+): Promise<unknown> {
+  const post = () =>
+    fetch(OPENAI_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${OPENAI_API_KEY}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ ...base, ...params }),
+    });
+  let resp = await post();
+  for (let attempt = 0; attempt < 2 && !resp.ok && resp.status === 400; attempt++) {
+    const errText = await resp.text();
+    const lower = errText.toLowerCase();
+    const dropped = Object.keys(params).filter((p) => lower.includes(p.toLowerCase()));
+    if (dropped.length === 0) {
+      throw new Error(`OpenAI 400: ${errText.slice(0, 300)}`);
+    }
+    for (const p of dropped) delete params[p];
+    console.warn(`analyze-entry: openai 400 dropping [${dropped.join(',')}]`);
+    resp = await post();
+  }
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => '');
+    throw new Error(`OpenAI ${resp.status}: ${text.slice(0, 300)}`);
+  }
+  return await resp.json();
+}
 
 // §9 — meal_slot 경계시간 (로컬 시각 기준). LLM 결정에 더해 시각 prior 로 사용.
 function timeBasedMealSlot(isoCapturedAt: string, locale: string) {
@@ -162,7 +197,7 @@ Rules:
   const userPrompt = `Captured at: ${capturedAt} (locale=${locale}).
 Return JSON only. No prose.`;
 
-  const body = {
+  const base = {
     model: OPENAI_MODEL,
     messages: [
       { role: 'system', content: systemPrompt },
@@ -175,23 +210,13 @@ Return JSON only. No prose.`;
       },
     ],
     response_format: { type: 'json_schema', json_schema: RESPONSE_SCHEMA },
-    temperature: 0.2,
   };
+  // reasoning 계열 지연 완화용. 모델이 거부하면 openaiChat 이 자동으로 떨군다.
+  const params: Record<string, unknown> = { reasoning_effort: 'low' };
 
-  const resp = await fetch(OPENAI_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${OPENAI_API_KEY}`,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => '');
-    throw new Error(`OpenAI ${resp.status}: ${text.slice(0, 300)}`);
-  }
-  const json = await resp.json();
-  const content: string = json?.choices?.[0]?.message?.content;
+  const json = await openaiChat(base, params) as
+    { choices?: Array<{ message?: { content?: string } }> };
+  const content: string | undefined = json?.choices?.[0]?.message?.content;
   if (!content) throw new Error('OpenAI: empty content');
 
   let parsed: LlmResult;

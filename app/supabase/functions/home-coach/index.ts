@@ -13,7 +13,7 @@
 //   SUPABASE_URL
 //   SUPABASE_SERVICE_ROLE_KEY
 //   OPENAI_API_KEY
-//   OPENAI_MODEL           (default 'gpt-5.4-mini')
+//   OPENAI_MODEL           (default 'gpt-5.5')
 //   OPENAI_ENDPOINT        (default 'https://api.openai.com/v1/chat/completions')
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -25,9 +25,44 @@ const admin = createClient(
 );
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!;
-const OPENAI_MODEL = Deno.env.get('OPENAI_MODEL') ?? 'gpt-5.4-mini';
+const OPENAI_MODEL = Deno.env.get('OPENAI_MODEL') ?? 'gpt-5.5';
 const OPENAI_ENDPOINT =
   Deno.env.get('OPENAI_ENDPOINT') ?? 'https://api.openai.com/v1/chat/completions';
+
+// OpenAI chat completions 호출. gpt-5.x(reasoning 계열)은 temperature 를 거부하므로
+// 보내지 않고, 모델이 거부하는 선택 파라미터(reasoning_effort 등)는 400 응답을 보고
+// 그 키만 떨군 뒤 재시도한다. generate-meal-plan 과 동일한 패턴.
+async function openaiChat(
+  base: Record<string, unknown>,
+  params: Record<string, unknown>,
+): Promise<unknown> {
+  const post = () =>
+    fetch(OPENAI_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${OPENAI_API_KEY}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ ...base, ...params }),
+    });
+  let resp = await post();
+  for (let attempt = 0; attempt < 2 && !resp.ok && resp.status === 400; attempt++) {
+    const errText = await resp.text();
+    const lower = errText.toLowerCase();
+    const dropped = Object.keys(params).filter((p) => lower.includes(p.toLowerCase()));
+    if (dropped.length === 0) {
+      throw new Error(`OpenAI 400: ${errText.slice(0, 300)}`);
+    }
+    for (const p of dropped) delete params[p];
+    console.warn(`home-coach: openai 400 dropping [${dropped.join(',')}]`);
+    resp = await post();
+  }
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => '');
+    throw new Error(`OpenAI ${resp.status}: ${text.slice(0, 300)}`);
+  }
+  return await resp.json();
+}
 
 // §7.9 — 금지어 (부정 표현). headline 에서 하나라도 등장하면 무난한 fallback 으로 대체.
 const BANNED = ['실패', '어겼다', '망쳤다', '해주세요'];
@@ -375,34 +410,27 @@ ${
 - next_tip: 현재 시각에 맞춰 다음 식사/간식 1~2문장 구체 가이드
 - focus: 지금 신경쓰면 좋을 영양소 1~2단어`;
 
-  const body = {
+  const base = {
     model: OPENAI_MODEL,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
     response_format: { type: 'json_schema', json_schema: RESPONSE_SCHEMA },
-    temperature: 0.6,
   };
+  // reasoning 계열 지연 완화용. 모델이 거부하면 openaiChat 이 자동으로 떨군다.
+  const params: Record<string, unknown> = { reasoning_effort: 'low' };
 
-  const resp = await fetch(OPENAI_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${OPENAI_API_KEY}`,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
-  if (!resp.ok) {
-    const t = await resp.text().catch(() => '');
-    console.error('openai failed', resp.status, t);
+  let raw: { choices?: Array<{ message?: { content?: string } }> };
+  try {
+    raw = await openaiChat(base, params) as typeof raw;
+  } catch (e) {
+    console.error('openai failed', e);
     return new Response(
-      JSON.stringify({ error: 'llm_failed', status: resp.status }),
+      JSON.stringify({ error: 'llm_failed' }),
       { status: 502, headers: { 'content-type': 'application/json' } },
     );
   }
-
-  const raw = await resp.json();
   const content: string | undefined = raw?.choices?.[0]?.message?.content;
   if (!content) {
     return new Response(
