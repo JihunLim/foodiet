@@ -1,6 +1,5 @@
 /// 인사이트 > 식단추천 탭.
 ///
-/// - 상단: 물 마시기 트래커 (체중·성별·활동도 기반 동적 목표).
 /// - 본문: 이번 주(월~일) AI 식단 카드. 없으면 큰 "식단짜기" 버튼.
 /// - 하단: 의학적 조언 아님 + 산출 근거 보기 링크.
 library;
@@ -16,7 +15,6 @@ import '../../widgets/primary_button.dart';
 import 'meal_detail_page.dart';
 import 'meal_plan_citations_sheet.dart';
 import 'meal_plan_form_sheet.dart';
-import 'water_tracker_card.dart';
 
 class MealPlanTab extends ConsumerWidget {
   const MealPlanTab({super.key});
@@ -40,8 +38,6 @@ class MealPlanTab extends ConsumerWidget {
           FoodietShape.sp40,
         ),
         children: [
-          const WaterTrackerCard(),
-          const SizedBox(height: FoodietShape.sp16),
           if (gen.generating)
             const _GeneratingPlan()
           else if (gen.error != null)

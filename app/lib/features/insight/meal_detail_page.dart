@@ -1,7 +1,6 @@
 /// 요리 상세 — 식단의 한 끼니를 탭하면 진입.
 ///
-/// 상단: 음식 이미지(없으면 스타일 헤더). 하단: 재료(수량) · 만드는 방법 ·
-/// 쇼핑 구매리스트(쿠팡·이마트·컬리 검색) · 참고리스트.
+/// 재료(수량) · 만드는 방법 · 쇼핑 구매리스트(쿠팡·이마트·컬리 검색) · 참고리스트.
 /// 모든 상세는 식단 생성 시 함께 만들어져 plan_json 에 저장된 값이다.
 library;
 
@@ -37,7 +36,6 @@ class MealDetailPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.only(bottom: FoodietShape.sp40),
         children: [
-          _imageHeader(),
           Padding(
             padding: const EdgeInsets.all(FoodietShape.sp20),
             child: Column(
@@ -69,24 +67,6 @@ class MealDetailPage extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
-  // 사진 제거 — 끼니색 그라데이션 + 이모지 헤더.
-  Widget _imageHeader() {
-    final c = _slotColor(meal.slot);
-    return Container(
-      height: 160,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [c.withValues(alpha: 0.25), FoodietColors.cream50],
-        ),
-      ),
-      alignment: Alignment.center,
-      child: const Text('🍽️', style: TextStyle(fontSize: 56)),
     );
   }
 

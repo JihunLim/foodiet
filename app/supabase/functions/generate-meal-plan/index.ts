@@ -21,7 +21,7 @@
 //
 // ENV:
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY,
-//   OPENAI_MODEL (default 'gpt-5.4-mini'), OPENAI_ENDPOINT (default openai chat).
+//   OPENAI_MODEL (default 'gpt-5.5'), OPENAI_ENDPOINT (default openai chat).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -32,7 +32,7 @@ const admin = createClient(
 );
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!;
-const OPENAI_MODEL = Deno.env.get('OPENAI_MODEL') ?? 'gpt-5.4-mini';
+const OPENAI_MODEL = Deno.env.get('OPENAI_MODEL') ?? 'gpt-5.5';
 const OPENAI_ENDPOINT =
   Deno.env.get('OPENAI_ENDPOINT') ?? 'https://api.openai.com/v1/chat/completions';
 
