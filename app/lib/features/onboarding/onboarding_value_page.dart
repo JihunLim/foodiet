@@ -61,7 +61,7 @@ class _OnboardingValuePageState extends ConsumerState<OnboardingValuePage> {
       accent: FoodietColors.coral700,
       emoji: '📤',
       eyebrow: '위젯 + 한 번에 공유',
-      title: 'PT에게 사진 한 장으로',
+      title: '친구에게 사진 한 장으로',
       body: '홈 위젯으로 남은 칼로리 확인,\n하루 식단을 카드 한 장으로 공유해.',
     ),
   ];
