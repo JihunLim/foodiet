@@ -73,6 +73,145 @@ import UserNotifications
       engineBridge.pluginRegistry,
       factoryId: "foodietNativeCard",
       nativeAdFactory: FoodietNativeAdFactory())
+
+    // iPhone Duo(폴더블) 힌지 · 예약 영역 → Dart (lib/services/duo_display.dart).
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "FoodietDuoBridge") {
+      FoodietDuoBridge.register(with: registrar)
+    }
+  }
+}
+
+// MARK: - FoodietDuoBridge
+//
+// iPhone Duo 대응. iOS 27.1 SDK 의 공식 API 로 읽은 값을 EventChannel 로 보낸다.
+//   - UIHingeInteraction: 힌지가 있는 기기인지(= Duo) + 접힘 상태/각도.
+//     힌지가 없는 기기에선 update.hinge 가 nil → hasHinge = false.
+//   - UIView.reservedRegions: 카메라·상태바가 가리는 영역(occlusion), 접히는 선(division).
+// 기기 모델명(iPhone19,x) 대신 "힌지가 있는가" 로 판단 — Apple 권장(기기 분기 지양).
+// 별도 파일로 빼면 Xcode 프로젝트 등록이 필요해지므로 AppDelegate 에 동봉.
+//
+final class FoodietDuoBridge: NSObject, FlutterStreamHandler {
+  private let registrar: FlutterPluginRegistrar
+  private var sink: FlutterEventSink?
+  private var probe: FoodietLayoutProbeView?
+  private var hingeInteraction: UIInteraction?
+  private var hinge: (status: Int, angle: Double)?
+  /// 힌지 유무가 확정됐는지. Duo 에서 첫 콜백 전에 hasHinge=false 를 보내면
+  /// Dart 가 하단 바를 그렸다가 플로팅 메뉴로 튀므로, 확정 전엔 보내지 않는다.
+  private var hingeResolved = false
+  private var lastPayload: NSDictionary?
+
+  private init(registrar: FlutterPluginRegistrar) {
+    self.registrar = registrar
+  }
+
+  static func register(with registrar: FlutterPluginRegistrar) {
+    let bridge = FoodietDuoBridge(registrar: registrar)
+    FlutterEventChannel(name: "foodiet/duo", binaryMessenger: registrar.messenger())
+      .setStreamHandler(bridge)
+    registrar.publish(bridge)  // 엔진 수명 동안 유지.
+  }
+
+  func onListen(withArguments arguments: Any?,
+                eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+    sink = events
+    lastPayload = nil
+    attach(retries: 20)
+    return nil
+  }
+
+  func onCancel(withArguments arguments: Any?) -> FlutterError? {
+    sink = nil
+    return nil
+  }
+
+  /// Flutter 뷰가 윈도우에 붙은 뒤에야 힌지 · 예약 영역을 읽을 수 있어서 잠깐 재시도.
+  private func attach(retries: Int) {
+    guard let view = registrar.viewController?.view, view.window != nil else {
+      if retries > 0 {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+          self?.attach(retries: retries - 1)
+        }
+      } else {
+        hingeResolved = true
+        send()
+      }
+      return
+    }
+    if probe == nil {
+      // 레이아웃 · safe area 변화(열기/닫기, 회전, Split View) 때 다시 보내기 위한 투명 뷰.
+      let p = FoodietLayoutProbeView(frame: view.bounds)
+      p.isUserInteractionEnabled = false
+      p.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+      p.onLayout = { [weak self] in self?.send() }
+      view.insertSubview(p, at: 0)
+      probe = p
+    }
+    if #available(iOS 27.1, *) {
+      if hingeInteraction == nil {
+        let interaction = UIHingeInteraction { [weak self] _, update in
+          if let h = update.hinge {
+            self?.hinge = (h.status.rawValue, Double(h.angle))
+          } else {
+            self?.hinge = nil
+          }
+          self?.hingeResolved = true
+          self?.send()
+        }
+        view.addInteraction(interaction)
+        hingeInteraction = interaction
+        // 힌지가 없는 기기는 콜백이 안 올 수 있으니 잠깐 뒤 false 로 확정.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+          self?.hingeResolved = true
+          self?.send()
+        }
+      }
+    } else {
+      hingeResolved = true
+    }
+    send()
+  }
+
+  private func send() {
+    guard let sink = sink, hingeResolved else { return }
+    var payload: [String: Any] = ["hasHinge": false]
+    if #available(iOS 27.1, *), let view = registrar.viewController?.view {
+      if let h = hinge {
+        payload["hasHinge"] = true
+        payload["hingeStatus"] = h.status
+        payload["hingeAngle"] = h.angle
+      }
+      payload["occlusions"] = view.reservedRegions(kind: .occlusion).map(Self.encode)
+      payload["divisions"] = view.reservedRegions(kind: .division).map(Self.encode)
+    }
+    let dict = payload as NSDictionary
+    if let last = lastPayload, last.isEqual(dict) { return }
+    lastPayload = dict
+    sink(payload)
+  }
+
+  /// Flutter 논리 픽셀 = UIKit 포인트. 뷰 좌표계 그대로 보낸다.
+  @available(iOS 27.1, *)
+  private static func encode(_ r: UIView.ReservedRegion) -> [String: Any] {
+    return [
+      "x": Double(r.frame.minX), "y": Double(r.frame.minY),
+      "w": Double(r.frame.width), "h": Double(r.frame.height),
+      "active": r.isActive,
+    ]
+  }
+}
+
+private final class FoodietLayoutProbeView: UIView {
+  var onLayout: (() -> Void)?
+
+  override func layoutSubviews() {
+    super.layoutSubviews()
+    onLayout?()
+  }
+
+  override func safeAreaInsetsDidChange() {
+    super.safeAreaInsetsDidChange()
+    onLayout?()
   }
 }
 

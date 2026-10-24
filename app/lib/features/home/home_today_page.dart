@@ -21,6 +21,7 @@ import 'package:intl/intl.dart';
 import '../../providers/entries_provider.dart';
 import '../../providers/home_widget_sync_provider.dart';
 import '../../providers/profile_provider.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/ai_coach_card.dart';
 import '../../widgets/foodie_bubble.dart';
@@ -77,10 +78,21 @@ class _HomeTodayPageState extends ConsumerState<HomeTodayPage> {
         child: RefreshIndicator(
           color: FoodietColors.coral500,
           onRefresh: () async => ref.invalidate(todayEntriesProvider),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-                FoodietShape.sp20, 0, FoodietShape.sp20, FoodietShape.sp40),
-            children: [
+          child: LayoutBuilder(builder: (context, constraints) {
+            // 넓은 화면(iPhone Duo 안쪽 디스플레이 가로, iPad) 은 요약 카드 |
+            // 타임라인 2단. 같은 정보 · 같은 순서를 유지하고 배치만 넓힌다
+            // (HIG: 화면이 커져도 앱을 새로 짜지 말고 기존 레이아웃을 넓힐 것).
+            // 같은 폭 2단이라 컬럼 사이가 화면 중앙(= Duo 접히는 선) 근처에 온다.
+            final twoColumns =
+                FoodietLayout.useTwoColumns(constraints.maxWidth);
+            final gutter = FoodietLayout.gutter(
+              constraints.maxWidth,
+              maxContent: twoColumns
+                  ? FoodietLayout.twoColumnMaxWidth
+                  : FoodietLayout.readableMaxWidth,
+            );
+
+            final header = <Widget>[
               Text('안녕, $nickname야 👋',
                   style: FoodietText.h2
                       .copyWith(color: FoodietColors.warm900)),
@@ -91,7 +103,9 @@ class _HomeTodayPageState extends ConsumerState<HomeTodayPage> {
                   style: FoodietText.body
                       .copyWith(color: FoodietColors.warm500)),
               const SizedBox(height: FoodietShape.sp16),
+            ];
 
+            final summary = <Widget>[
               const AiCoachCard(),
 
               const SizedBox(height: FoodietShape.sp16),
@@ -112,9 +126,9 @@ class _HomeTodayPageState extends ConsumerState<HomeTodayPage> {
                   suggestedAction: '카메라 열기',
                   onTapMore: () => context.push('/camera'),
                 ),
+            ];
 
-              const SizedBox(height: FoodietShape.sp24),
-
+            final timeline = <Widget>[
               // 빠른 기록 — 즐겨찾기가 있을 때만 칩 행을 노출 (없으면 shrink).
               const QuickRecordChips(),
 
@@ -135,8 +149,41 @@ class _HomeTodayPageState extends ConsumerState<HomeTodayPage> {
                 const _EmptyTimeline()
               else
                 ...entries.map((e) => _TimelineRow(entry: e)),
-            ],
-          ),
+            ];
+
+            return ListView(
+              padding: EdgeInsets.fromLTRB(gutter, 0, gutter,
+                  FoodietShape.sp40 + DuoChromeInsets.scrollBottomOf(context)),
+              children: twoColumns
+                  ? [
+                      ...header,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: summary,
+                            ),
+                          ),
+                          const SizedBox(width: FoodietLayout.columnGap),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: timeline,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ]
+                  : [
+                      ...header,
+                      ...summary,
+                      const SizedBox(height: FoodietShape.sp24),
+                      ...timeline,
+                    ],
+            );
+          }),
         ),
       ),
     );

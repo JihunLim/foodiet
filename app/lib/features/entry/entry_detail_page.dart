@@ -15,6 +15,7 @@ import '../../providers/entries_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/supabase_provider.dart';
 import '../../supabase/client.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/signed_network_image.dart';
 
@@ -152,212 +153,213 @@ class _Body extends ConsumerWidget {
     final mealLabel = _mealSlotLabel(entry.mealSlot);
     final mealColor = _mealSlotColor(entry.mealSlot);
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(
-          FoodietShape.sp20, 0, FoodietShape.sp20, FoodietShape.sp40),
-      children: [
-        // 사진 — 전체가 보이도록 BoxFit.contain 으로 표시하고 탭하면
-        // 풀스크린 확대 뷰어를 연다. 배경은 cream100 으로 letterbox.
-        // 네트워크/CDN 일시 실패 시 SignedNetworkImage 가 새 URL 로 자동 재시도.
-        GestureDetector(
-          onTap: () => _openFullscreenPhoto(
-              context, entry.imagePath, 'entry-photo-${entry.id}'),
-          child: Hero(
-            tag: 'entry-photo-${entry.id}',
-            child: Container(
-              width: double.infinity,
-              height: 320,
-              decoration: BoxDecoration(
-                color: FoodietColors.cream100,
-                borderRadius: BorderRadius.circular(FoodietShape.radiusLg),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  SignedNetworkImage(
-                    path: entry.imagePath,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_) => Container(
-                      color: FoodietColors.cream100,
-                      alignment: Alignment.center,
-                      child: const Text('🍽️', style: TextStyle(fontSize: 48)),
-                    ),
-                  ),
-                  // 확대 힌트 아이콘 — 우하단.
-                  Positioned(
-                    right: 10,
-                    bottom: 10,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.45),
-                        borderRadius:
-                            BorderRadius.circular(FoodietShape.radiusSm),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.zoom_in_rounded,
-                              size: 14, color: Colors.white),
-                          SizedBox(width: 4),
-                          Text('크게 보기',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              )),
-                        ],
+    return ReadableGutter(
+      builder: (_, gutter) => ListView(
+        padding: EdgeInsets.fromLTRB(gutter, 0, gutter, FoodietShape.sp40),
+        children: [
+          // 사진 — 전체가 보이도록 BoxFit.contain 으로 표시하고 탭하면
+          // 풀스크린 확대 뷰어를 연다. 배경은 cream100 으로 letterbox.
+          // 네트워크/CDN 일시 실패 시 SignedNetworkImage 가 새 URL 로 자동 재시도.
+          GestureDetector(
+            onTap: () => _openFullscreenPhoto(
+                context, entry.imagePath, 'entry-photo-${entry.id}'),
+            child: Hero(
+              tag: 'entry-photo-${entry.id}',
+              child: Container(
+                width: double.infinity,
+                height: 320,
+                decoration: BoxDecoration(
+                  color: FoodietColors.cream100,
+                  borderRadius: BorderRadius.circular(FoodietShape.radiusLg),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    SignedNetworkImage(
+                      path: entry.imagePath,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_) => Container(
+                        color: FoodietColors.cream100,
+                        alignment: Alignment.center,
+                        child: const Text('🍽️', style: TextStyle(fontSize: 48)),
                       ),
                     ),
-                  ),
-                ],
+                    // 확대 힌트 아이콘 — 우하단.
+                    Positioned(
+                      right: 10,
+                      bottom: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.45),
+                          borderRadius:
+                              BorderRadius.circular(FoodietShape.radiusSm),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.zoom_in_rounded,
+                                size: 14, color: Colors.white),
+                            SizedBox(width: 4),
+                            Text('크게 보기',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                )),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(height: FoodietShape.sp16),
+          const SizedBox(height: FoodietShape.sp16),
 
-        // 제목 + 끼니 배지
-        Row(
-          children: [
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-              decoration: BoxDecoration(
-                color: mealColor.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(FoodietShape.radiusSm),
-              ),
-              child: Text(mealLabel,
-                  style: FoodietText.caption.copyWith(
-                    color: mealColor,
-                    fontWeight: FontWeight.w700,
-                  )),
-            ),
-            if (entry.sharedWithCount > 1) ...[
-              const SizedBox(width: 8),
+          // 제목 + 끼니 배지
+          Row(
+            children: [
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                 decoration: BoxDecoration(
-                  color: FoodietColors.leaf100,
+                  color: mealColor.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(FoodietShape.radiusSm),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.group_rounded,
-                        size: 12, color: FoodietColors.leaf700),
-                    const SizedBox(width: 4),
-                    Text('${entry.sharedWithCount}명과 나눔',
-                        style: FoodietText.caption.copyWith(
-                          color: FoodietColors.leaf700,
-                          fontWeight: FontWeight.w700,
-                        )),
-                  ],
-                ),
+                child: Text(mealLabel,
+                    style: FoodietText.caption.copyWith(
+                      color: mealColor,
+                      fontWeight: FontWeight.w700,
+                    )),
               ),
+              if (entry.sharedWithCount > 1) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: FoodietColors.leaf100,
+                    borderRadius: BorderRadius.circular(FoodietShape.radiusSm),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.group_rounded,
+                          size: 12, color: FoodietColors.leaf700),
+                      const SizedBox(width: 4),
+                      Text('${entry.sharedWithCount}명과 나눔',
+                          style: FoodietText.caption.copyWith(
+                            color: FoodietColors.leaf700,
+                            fontWeight: FontWeight.w700,
+                          )),
+                    ],
+                  ),
+                ),
+              ],
             ],
+          ),
+          const SizedBox(height: FoodietShape.sp8),
+          Text(entry.title?.trim().isNotEmpty == true ? entry.title! : '식사 기록',
+              style: FoodietText.h2.copyWith(color: FoodietColors.warm900)),
+          const SizedBox(height: 2),
+          Text(dateLabel,
+              style:
+                  FoodietText.bodySm.copyWith(color: FoodietColors.warm500)),
+
+          const SizedBox(height: FoodietShape.sp20),
+
+          // kcal 요약 카드
+          _KcalCard(entry: entry),
+
+          const SizedBox(height: FoodietShape.sp20),
+
+          // 상태 안내 (분석 중 / 실패)
+          if (entry.status == 'pending')
+            _statusBanner(
+              icon: Icons.hourglass_top_rounded,
+              text: '푸디가 분석 중이야. 곧 결과가 떠!',
+              color: FoodietColors.coral500,
+            )
+          else if (entry.status == 'failed')
+            _statusBanner(
+              icon: Icons.error_outline_rounded,
+              text: '분석에 실패했어. 네트워크 확인 후 다시 찍어줘.',
+              color: FoodietColors.danger,
+            ),
+
+          if (entry.status == 'done' && items.isNotEmpty) ...[
+            Text('품목',
+                style:
+                    FoodietText.title.copyWith(color: FoodietColors.warm700)),
+            const SizedBox(height: FoodietShape.sp8),
+            ...items.map((it) => _ItemRow(item: it)),
           ],
-        ),
-        const SizedBox(height: FoodietShape.sp8),
-        Text(entry.title?.trim().isNotEmpty == true ? entry.title! : '식사 기록',
-            style: FoodietText.h2.copyWith(color: FoodietColors.warm900)),
-        const SizedBox(height: 2),
-        Text(dateLabel,
-            style:
-                FoodietText.bodySm.copyWith(color: FoodietColors.warm500)),
 
-        const SizedBox(height: FoodietShape.sp20),
+          if (entry.status == 'done' && entry.macros != null) ...[
+            const SizedBox(height: FoodietShape.sp20),
+            Text('영양소',
+                style:
+                    FoodietText.title.copyWith(color: FoodietColors.warm700)),
+            const SizedBox(height: FoodietShape.sp8),
+            _MacrosCard(macros: entry.macros!),
+          ],
 
-        // kcal 요약 카드
-        _KcalCard(entry: entry),
-
-        const SizedBox(height: FoodietShape.sp20),
-
-        // 상태 안내 (분석 중 / 실패)
-        if (entry.status == 'pending')
-          _statusBanner(
-            icon: Icons.hourglass_top_rounded,
-            text: '푸디가 분석 중이야. 곧 결과가 떠!',
-            color: FoodietColors.coral500,
-          )
-        else if (entry.status == 'failed')
-          _statusBanner(
-            icon: Icons.error_outline_rounded,
-            text: '분석에 실패했어. 네트워크 확인 후 다시 찍어줘.',
-            color: FoodietColors.danger,
-          ),
-
-        if (entry.status == 'done' && items.isNotEmpty) ...[
-          Text('품목',
-              style:
-                  FoodietText.title.copyWith(color: FoodietColors.warm700)),
-          const SizedBox(height: FoodietShape.sp8),
-          ...items.map((it) => _ItemRow(item: it)),
-        ],
-
-        if (entry.status == 'done' && entry.macros != null) ...[
-          const SizedBox(height: FoodietShape.sp20),
-          Text('영양소',
-              style:
-                  FoodietText.title.copyWith(color: FoodietColors.warm700)),
-          const SizedBox(height: FoodietShape.sp8),
-          _MacrosCard(macros: entry.macros!),
-        ],
-
-        if (entry.note?.trim().isNotEmpty == true) ...[
-          const SizedBox(height: FoodietShape.sp20),
-          Text('메모',
-              style:
-                  FoodietText.title.copyWith(color: FoodietColors.warm700)),
-          const SizedBox(height: FoodietShape.sp8),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(FoodietShape.sp12),
-            decoration: BoxDecoration(
-              color: FoodietColors.cream50,
-              borderRadius: BorderRadius.circular(FoodietShape.radiusMd),
-              border: Border.all(color: FoodietColors.cream100),
+          if (entry.note?.trim().isNotEmpty == true) ...[
+            const SizedBox(height: FoodietShape.sp20),
+            Text('메모',
+                style:
+                    FoodietText.title.copyWith(color: FoodietColors.warm700)),
+            const SizedBox(height: FoodietShape.sp8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(FoodietShape.sp12),
+              decoration: BoxDecoration(
+                color: FoodietColors.cream50,
+                borderRadius: BorderRadius.circular(FoodietShape.radiusMd),
+                border: Border.all(color: FoodietColors.cream100),
+              ),
+              child: Text(entry.note!,
+                  style: FoodietText.body
+                      .copyWith(color: FoodietColors.warm700)),
             ),
-            child: Text(entry.note!,
-                style: FoodietText.body
-                    .copyWith(color: FoodietColors.warm700)),
-          ),
-        ],
+          ],
 
-        const SizedBox(height: FoodietShape.sp24),
+          const SizedBox(height: FoodietShape.sp24),
 
-        // 수정 버튼
-        FilledButton.icon(
-          onPressed: () => _openEditSheet(context, ref, entry),
-          icon: const Icon(Icons.edit_outlined, size: 18),
-          label: const Text('수정하기'),
-          style: FilledButton.styleFrom(
-            backgroundColor: FoodietColors.coral500,
-            foregroundColor: Colors.white,
-            minimumSize: const Size.fromHeight(48),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(FoodietShape.radiusMd),
+          // 수정 버튼
+          FilledButton.icon(
+            onPressed: () => _openEditSheet(context, ref, entry),
+            icon: const Icon(Icons.edit_outlined, size: 18),
+            label: const Text('수정하기'),
+            style: FilledButton.styleFrom(
+              backgroundColor: FoodietColors.coral500,
+              foregroundColor: Colors.white,
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(FoodietShape.radiusMd),
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: FoodietShape.sp8),
-        OutlinedButton.icon(
-          onPressed: () => _confirmAndDelete(context, ref, entry),
-          icon: const Icon(Icons.delete_outline, size: 18),
-          label: const Text('삭제하기'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: FoodietColors.danger,
-            side: const BorderSide(color: FoodietColors.danger),
-            minimumSize: const Size.fromHeight(48),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(FoodietShape.radiusMd),
+          const SizedBox(height: FoodietShape.sp8),
+          OutlinedButton.icon(
+            onPressed: () => _confirmAndDelete(context, ref, entry),
+            icon: const Icon(Icons.delete_outline, size: 18),
+            label: const Text('삭제하기'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: FoodietColors.danger,
+              side: const BorderSide(color: FoodietColors.danger),
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(FoodietShape.radiusMd),
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -615,6 +617,7 @@ Future<void> _openEditSheet(
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true, // 상태바·좌우 inset(Duo 카메라, Split View) 회피
     backgroundColor: FoodietColors.cream00,
     shape: const RoundedRectangleBorder(
       borderRadius:

@@ -15,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/env.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/auth_service.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 
 class SignInPage extends ConsumerStatefulWidget {
@@ -67,63 +68,65 @@ class _SignInPageState extends ConsumerState<SignInPage> {
       body: SafeArea(
         child: Stack(
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: FoodietShape.sp20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: FoodietShape.sp40),
-                  const Center(
-                    child: Text('🍓', style: TextStyle(fontSize: 64)),
-                  ),
-                  const SizedBox(height: FoodietShape.sp24),
-                  Text('안녕, 나는 푸디야',
-                      textAlign: TextAlign.center,
-                      style: FoodietText.h2
-                          .copyWith(color: FoodietColors.warm900)),
-                  const SizedBox(height: FoodietShape.sp8),
-                  Text('식단 기록, 사진 한 장이면 돼.',
-                      textAlign: TextAlign.center,
-                      style: FoodietText.body
-                          .copyWith(color: FoodietColors.warm500)),
-                  const Spacer(),
-                  if (showApple) ...[
-                    _ProviderButton(
-                      label: 'Apple로 계속하기',
-                      bg: const Color(0xFF000000),
-                      fg: Colors.white,
-                      icon: Icons.apple,
-                      onPressed: _busy
-                          ? null
-                          : () => _run(auth.signInWithApple, 'Apple'),
+            ReadableWidth(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: FoodietShape.sp20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: FoodietShape.sp40),
+                    const Center(
+                      child: Text('🍓', style: TextStyle(fontSize: 64)),
                     ),
-                    const SizedBox(height: FoodietShape.sp12),
-                  ],
-                  _ProviderButton(
-                    label: 'Google로 계속하기',
-                    bg: Colors.white,
-                    fg: const Color(0xFF1F1F1F),
-                    icon: Icons.g_mobiledata_rounded,
-                    border: FoodietColors.cream100,
-                    onPressed: _busy
-                        ? null
-                        : () => _run(auth.signInWithGoogle, 'Google'),
-                  ),
-                  if (showKakao) ...[
-                    const SizedBox(height: FoodietShape.sp12),
+                    const SizedBox(height: FoodietShape.sp24),
+                    Text('안녕, 나는 푸디야',
+                        textAlign: TextAlign.center,
+                        style: FoodietText.h2
+                            .copyWith(color: FoodietColors.warm900)),
+                    const SizedBox(height: FoodietShape.sp8),
+                    Text('식단 기록, 사진 한 장이면 돼.',
+                        textAlign: TextAlign.center,
+                        style: FoodietText.body
+                            .copyWith(color: FoodietColors.warm500)),
+                    const Spacer(),
+                    if (showApple) ...[
+                      _ProviderButton(
+                        label: 'Apple로 계속하기',
+                        bg: const Color(0xFF000000),
+                        fg: Colors.white,
+                        icon: Icons.apple,
+                        onPressed: _busy
+                            ? null
+                            : () => _run(auth.signInWithApple, 'Apple'),
+                      ),
+                      const SizedBox(height: FoodietShape.sp12),
+                    ],
                     _ProviderButton(
-                      label: '카카오로 계속하기',
-                      bg: const Color(0xFFFEE500),
+                      label: 'Google로 계속하기',
+                      bg: Colors.white,
                       fg: const Color(0xFF1F1F1F),
-                      icon: Icons.chat_bubble_rounded,
+                      icon: Icons.g_mobiledata_rounded,
+                      border: FoodietColors.cream100,
                       onPressed: _busy
                           ? null
-                          : () => _run(auth.signInWithKakao, 'Kakao'),
+                          : () => _run(auth.signInWithGoogle, 'Google'),
                     ),
+                    if (showKakao) ...[
+                      const SizedBox(height: FoodietShape.sp12),
+                      _ProviderButton(
+                        label: '카카오로 계속하기',
+                        bg: const Color(0xFFFEE500),
+                        fg: const Color(0xFF1F1F1F),
+                        icon: Icons.chat_bubble_rounded,
+                        onPressed: _busy
+                            ? null
+                            : () => _run(auth.signInWithKakao, 'Kakao'),
+                      ),
+                    ],
+                    const SizedBox(height: FoodietShape.sp40),
                   ],
-                  const SizedBox(height: FoodietShape.sp40),
-                ],
+                ),
               ),
             ),
             if (_busy)

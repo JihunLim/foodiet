@@ -26,6 +26,7 @@ import '../../providers/supabase_provider.dart';
 import '../../services/daily_share_service.dart';
 import '../../services/meal_reminder_service.dart';
 import '../../supabase/client.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 
 class ProfilePage extends ConsumerWidget {
@@ -47,116 +48,119 @@ class ProfilePage extends ConsumerWidget {
                 FoodietText.h3.copyWith(color: FoodietColors.warm900)),
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(FoodietShape.sp20),
-          children: [
-            _Header(
-              nickname: profile?.nickname ?? '후니',
-              targetKcal: profile?.dailyKcalTarget,
-              goalWeightKg: profile?.goalWeightKg,
-            ),
-            const SizedBox(height: FoodietShape.sp24),
+        child: ReadableGutter(
+          builder: (_, gutter) => ListView(
+            padding: EdgeInsets.fromLTRB(
+                gutter, FoodietShape.sp20, gutter, FoodietShape.sp20),
+            children: [
+              _Header(
+                nickname: profile?.nickname ?? '후니',
+                targetKcal: profile?.dailyKcalTarget,
+                goalWeightKg: profile?.goalWeightKg,
+              ),
+              const SizedBox(height: FoodietShape.sp24),
 
-            // 계정 — 본인의 식별/목표 정보를 다루는 항목들.
-            _MenuGroup(
-              title: '계정',
-              children: [
-                _MenuItem(
-                  icon: Icons.badge_outlined,
-                  label: '닉네임 변경',
-                  onTap: () => context.push('/profile/nickname'),
-                ),
-                _MenuItem(
-                  icon: Icons.flag_outlined,
-                  label: '프로필 · 목표 · 기한',
-                  onTap: () => context.push('/profile/edit'),
-                ),
-              ],
-            ),
-            const SizedBox(height: FoodietShape.sp16),
+              // 계정 — 본인의 식별/목표 정보를 다루는 항목들.
+              _MenuGroup(
+                title: '계정',
+                children: [
+                  _MenuItem(
+                    icon: Icons.badge_outlined,
+                    label: '닉네임 변경',
+                    onTap: () => context.push('/profile/nickname'),
+                  ),
+                  _MenuItem(
+                    icon: Icons.flag_outlined,
+                    label: '프로필 · 목표 · 기한',
+                    onTap: () => context.push('/profile/edit'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: FoodietShape.sp16),
 
-            // 기록 — 즐겨찾기 등 빠른 기록 관리.
-            _MenuGroup(
-              title: '기록',
-              children: [
-                _MenuItem(
-                  icon: Icons.star_outline_rounded,
-                  label: '즐겨찾기 관리',
-                  onTap: () => context.push('/favorites'),
-                ),
-              ],
-            ),
-            const SizedBox(height: FoodietShape.sp16),
+              // 기록 — 즐겨찾기 등 빠른 기록 관리.
+              _MenuGroup(
+                title: '기록',
+                children: [
+                  _MenuItem(
+                    icon: Icons.star_outline_rounded,
+                    label: '즐겨찾기 관리',
+                    onTap: () => context.push('/favorites'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: FoodietShape.sp16),
 
-            // 커뮤니티 — 그룹 관련 알림성 진입.
-            _MenuGroup(
-              title: '커뮤니티',
-              children: [
-                _MenuItem(
-                  icon: Icons.mail_outline_rounded,
-                  label: '그룹 초대장',
-                  badgeCount: inviteCount,
-                  onTap: () => context.push('/profile/invites'),
-                ),
-              ],
-            ),
-            const SizedBox(height: FoodietShape.sp16),
+              // 커뮤니티 — 그룹 관련 알림성 진입.
+              _MenuGroup(
+                title: '커뮤니티',
+                children: [
+                  _MenuItem(
+                    icon: Icons.mail_outline_rounded,
+                    label: '그룹 초대장',
+                    badgeCount: inviteCount,
+                    onTap: () => context.push('/profile/invites'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: FoodietShape.sp16),
 
-            // 알림 — 끼니 리마인더 등 푸시.
-            _MenuGroup(
-              title: '알림',
-              children: [
-                _MenuItem(
-                  icon: Icons.notifications_none_rounded,
-                  label: '알림 설정',
-                  onTap: () => _openNotificationSheet(context),
-                ),
-              ],
-            ),
-            const SizedBox(height: FoodietShape.sp16),
+              // 알림 — 끼니 리마인더 등 푸시.
+              _MenuGroup(
+                title: '알림',
+                children: [
+                  _MenuItem(
+                    icon: Icons.notifications_none_rounded,
+                    label: '알림 설정',
+                    onTap: () => _openNotificationSheet(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: FoodietShape.sp16),
 
-            // 공유 — 외부로 나가는 액션.
-            _MenuGroup(
-              title: '공유',
-              children: [
-                _MenuItem(
-                  icon: Icons.share_outlined,
-                  label: 'PT · 친구에게 공유',
-                  onTap: () => _sharePt(context, ref),
-                ),
-              ],
-            ),
-            const SizedBox(height: FoodietShape.sp16),
+              // 공유 — 외부로 나가는 액션.
+              _MenuGroup(
+                title: '공유',
+                children: [
+                  _MenuItem(
+                    icon: Icons.share_outlined,
+                    label: 'PT · 친구에게 공유',
+                    onTap: () => _sharePt(context, ref),
+                  ),
+                ],
+              ),
+              const SizedBox(height: FoodietShape.sp16),
 
-            // 데이터 / 개인정보.
-            _MenuGroup(
-              title: '데이터 · 개인정보',
-              children: [
-                _MenuItem(
-                  icon: Icons.shield_outlined,
-                  label: '프라이버시 · 데이터',
-                  onTap: () => _openPrivacySheet(context, ref),
-                ),
-              ],
-            ),
-            const SizedBox(height: FoodietShape.sp24),
+              // 데이터 / 개인정보.
+              _MenuGroup(
+                title: '데이터 · 개인정보',
+                children: [
+                  _MenuItem(
+                    icon: Icons.shield_outlined,
+                    label: '프라이버시 · 데이터',
+                    onTap: () => _openPrivacySheet(context, ref),
+                  ),
+                ],
+              ),
+              const SizedBox(height: FoodietShape.sp24),
 
-            // 로그아웃은 그룹 박스 밖 — 위험성 있는 액션.
-            _MenuItem(
-              icon: Icons.logout_rounded,
-              label: '로그아웃',
-              color: FoodietColors.danger,
-              onTap: () async {
-                final auth = ref.read(supabaseClientProvider).auth;
-                if (auth.currentUser != null) {
-                  await auth.signOut();
-                }
-                // 로컬 끼니 리마인더도 함께 정리.
-                await MealReminderService.instance.cancelAll();
-                if (context.mounted) context.go('/sign-in');
-              },
-            ),
-          ],
+              // 로그아웃은 그룹 박스 밖 — 위험성 있는 액션.
+              _MenuItem(
+                icon: Icons.logout_rounded,
+                label: '로그아웃',
+                color: FoodietColors.danger,
+                onTap: () async {
+                  final auth = ref.read(supabaseClientProvider).auth;
+                  if (auth.currentUser != null) {
+                    await auth.signOut();
+                  }
+                  // 로컬 끼니 리마인더도 함께 정리.
+                  await MealReminderService.instance.cancelAll();
+                  if (context.mounted) context.go('/sign-in');
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -194,6 +198,7 @@ class ProfilePage extends ConsumerWidget {
       context: context,
       backgroundColor: FoodietColors.cream00,
       isScrollControlled: true,
+      useSafeArea: true, // 상태바·좌우 inset(Duo 카메라, Split View) 회피
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(FoodietShape.radiusLg),
@@ -209,6 +214,7 @@ class ProfilePage extends ConsumerWidget {
       context: context,
       backgroundColor: FoodietColors.cream00,
       isScrollControlled: true,
+      useSafeArea: true, // 상태바·좌우 inset(Duo 카메라, Split View) 회피
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(FoodietShape.radiusLg),

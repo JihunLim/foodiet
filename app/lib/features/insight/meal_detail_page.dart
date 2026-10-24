@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/meal_plan_service.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 import 'meal_plan_citations_sheet.dart';
 
@@ -33,39 +34,47 @@ class MealDetailPage extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: FoodietText.h3.copyWith(color: FoodietColors.warm900)),
       ),
-      body: ListView(
-        padding: const EdgeInsets.only(bottom: FoodietShape.sp40),
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(FoodietShape.sp20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _slotKcalRow(),
-                const SizedBox(height: FoodietShape.sp8),
-                Text(meal.name,
-                    style: FoodietText.h3.copyWith(
-                        color: FoodietColors.warm900,
-                        fontWeight: FontWeight.w700)),
-                const SizedBox(height: 4),
-                Text(
-                    '탄 ${meal.carbG}g · 단 ${meal.proteinG}g · 지 ${meal.fatG}g',
-                    style: FoodietText.bodySm
-                        .copyWith(color: FoodietColors.warm500)),
-                if (meal.recipeBrief.isNotEmpty) ...[
-                  const SizedBox(height: FoodietShape.sp12),
-                  Text(meal.recipeBrief,
-                      style: FoodietText.body.copyWith(
-                          color: FoodietColors.warm700, height: 1.5)),
-                ],
-                _ingredientsSection(),
-                _stepsSection(),
-                _shoppingSection(),
-                _referencesSection(),
-              ],
-            ),
+      body: SafeArea(
+        // 섹션마다 자체 20 여백이 있어 바깥 여백은 0 부터 (넓은 화면에서만 생김).
+        child: ReadableGutter(
+          min: 0,
+          maxContent: FoodietLayout.readableMaxWidth + FoodietShape.sp20 * 2,
+          builder: (_, gutter) => ListView(
+            padding: EdgeInsets.fromLTRB(
+                gutter, 0, gutter, FoodietShape.sp40),
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(FoodietShape.sp20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _slotKcalRow(),
+                    const SizedBox(height: FoodietShape.sp8),
+                    Text(meal.name,
+                        style: FoodietText.h3.copyWith(
+                            color: FoodietColors.warm900,
+                            fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 4),
+                    Text(
+                        '탄 ${meal.carbG}g · 단 ${meal.proteinG}g · 지 ${meal.fatG}g',
+                        style: FoodietText.bodySm
+                            .copyWith(color: FoodietColors.warm500)),
+                    if (meal.recipeBrief.isNotEmpty) ...[
+                      const SizedBox(height: FoodietShape.sp12),
+                      Text(meal.recipeBrief,
+                          style: FoodietText.body.copyWith(
+                              color: FoodietColors.warm700, height: 1.5)),
+                    ],
+                    _ingredientsSection(),
+                    _stepsSection(),
+                    _shoppingSection(),
+                    _referencesSection(),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

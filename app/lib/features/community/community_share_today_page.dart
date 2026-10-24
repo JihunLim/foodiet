@@ -20,6 +20,7 @@ import '../../providers/entries_provider.dart';
 import '../../providers/profile_provider.dart';
 import '../../services/community/community_models.dart';
 import '../../services/community/community_service.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/primary_button.dart';
 import '../../widgets/signed_network_image.dart';
@@ -305,108 +306,111 @@ class _CommunityShareTodayPageState
                     entries.where((e) => e.status == 'done').toList();
                 _primeSelectionIfNeeded(done);
 
-                return ListView(
-                  padding: const EdgeInsets.all(FoodietShape.sp20),
-                  children: [
-                    Text(
-                      '${DateFormat('M월 d일').format(DateTime.now())} 오늘 식단을 어디에 공유할까?',
-                      style: FoodietText.bodySm
-                          .copyWith(color: FoodietColors.warm500),
-                    ),
-                    const SizedBox(height: FoodietShape.sp12),
-                    ...groups.map((g) => RadioListTile<String>(
-                          contentPadding: EdgeInsets.zero,
-                          title: Row(
-                            children: [
-                              Text(g.emoji,
-                                  style: const TextStyle(fontSize: 18)),
-                              const SizedBox(width: 8),
-                              Expanded(child: Text(g.name)),
-                            ],
-                          ),
-                          value: g.id,
-                          groupValue: selectedId,
-                          activeColor: FoodietColors.coral500,
-                          onChanged: (v) {
-                            if (v == null) return;
-                            setState(() {
-                              _selectedGroupId = v;
-                              // 그룹 바뀌면 토글/선택 모두 리셋 — 새 멤버십·이력 기준으로 다시 채움.
-                              _togglesPrimed = false;
-                              _showPhotos = null;
-                              _showKcal = null;
-                              _showMacros = null;
-                              _selectionPrimedForGroup = false;
-                              _alreadySharedForGroupId = null;
-                              _alreadyShared = <String>{};
-                            });
-                          },
-                        )),
-                    const SizedBox(height: FoodietShape.sp16),
-                    _EntryPickerSection(
-                      entries: done,
-                      selectedIds: _selectedEntryIds,
-                      alreadyShared: _alreadyShared,
-                      onToggle: (id) {
-                        setState(() {
-                          if (_selectedEntryIds.contains(id)) {
-                            _selectedEntryIds.remove(id);
-                          } else {
-                            _selectedEntryIds.add(id);
-                          }
-                        });
-                      },
-                      mealLabelOf: _mealSlotLabel,
-                    ),
-                    const SizedBox(height: FoodietShape.sp16),
-                    Text('이 카드에 포함할 정보',
-                        style: FoodietText.bodySm.copyWith(
-                            color: FoodietColors.warm700,
-                            fontWeight: FontWeight.w700)),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('음식 사진'),
-                      value: _showPhotos ?? true,
-                      activeThumbColor: FoodietColors.coral500,
-                      onChanged: (v) => setState(() => _showPhotos = v),
-                    ),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('칼로리'),
-                      value: _showKcal ?? true,
-                      activeThumbColor: FoodietColors.coral500,
-                      onChanged: (v) => setState(() => _showKcal = v),
-                    ),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('영양소(탄단지)'),
-                      value: _showMacros ?? true,
-                      activeThumbColor: FoodietColors.coral500,
-                      onChanged: (v) => setState(() => _showMacros = v),
-                    ),
-                    const SizedBox(height: FoodietShape.sp12),
-                    Text('한마디 (선택)',
-                        style: FoodietText.bodySm.copyWith(
-                            color: FoodietColors.warm700,
-                            fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: _caption,
-                      maxLength: 200,
-                      maxLines: 1,
-                      textInputAction: TextInputAction.done,
-                      onSubmitted: (_) =>
-                          FocusScope.of(context).unfocus(),
-                      decoration: const InputDecoration(
-                        hintText: '예: 점심 닭가슴살 굿!',
+                return ReadableGutter(
+                  builder: (_, gutter) => ListView(
+                    padding: EdgeInsets.fromLTRB(
+                        gutter, FoodietShape.sp20, gutter, FoodietShape.sp20),
+                    children: [
+                      Text(
+                        '${DateFormat('M월 d일').format(DateTime.now())} 오늘 식단을 어디에 공유할까?',
+                        style: FoodietText.bodySm
+                            .copyWith(color: FoodietColors.warm500),
                       ),
-                    ),
-                    const SizedBox(height: FoodietShape.sp24),
-                    PrimaryButton(
-                      label: _saving ? '공유 중…' : '공유하기',
-                      onPressed: _saving ? null : () => _submit(done),
-                    ),
-                  ],
+                      const SizedBox(height: FoodietShape.sp12),
+                      ...groups.map((g) => RadioListTile<String>(
+                            contentPadding: EdgeInsets.zero,
+                            title: Row(
+                              children: [
+                                Text(g.emoji,
+                                    style: const TextStyle(fontSize: 18)),
+                                const SizedBox(width: 8),
+                                Expanded(child: Text(g.name)),
+                              ],
+                            ),
+                            value: g.id,
+                            groupValue: selectedId,
+                            activeColor: FoodietColors.coral500,
+                            onChanged: (v) {
+                              if (v == null) return;
+                              setState(() {
+                                _selectedGroupId = v;
+                                // 그룹 바뀌면 토글/선택 모두 리셋 — 새 멤버십·이력 기준으로 다시 채움.
+                                _togglesPrimed = false;
+                                _showPhotos = null;
+                                _showKcal = null;
+                                _showMacros = null;
+                                _selectionPrimedForGroup = false;
+                                _alreadySharedForGroupId = null;
+                                _alreadyShared = <String>{};
+                              });
+                            },
+                          )),
+                      const SizedBox(height: FoodietShape.sp16),
+                      _EntryPickerSection(
+                        entries: done,
+                        selectedIds: _selectedEntryIds,
+                        alreadyShared: _alreadyShared,
+                        onToggle: (id) {
+                          setState(() {
+                            if (_selectedEntryIds.contains(id)) {
+                              _selectedEntryIds.remove(id);
+                            } else {
+                              _selectedEntryIds.add(id);
+                            }
+                          });
+                        },
+                        mealLabelOf: _mealSlotLabel,
+                      ),
+                      const SizedBox(height: FoodietShape.sp16),
+                      Text('이 카드에 포함할 정보',
+                          style: FoodietText.bodySm.copyWith(
+                              color: FoodietColors.warm700,
+                              fontWeight: FontWeight.w700)),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('음식 사진'),
+                        value: _showPhotos ?? true,
+                        activeThumbColor: FoodietColors.coral500,
+                        onChanged: (v) => setState(() => _showPhotos = v),
+                      ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('칼로리'),
+                        value: _showKcal ?? true,
+                        activeThumbColor: FoodietColors.coral500,
+                        onChanged: (v) => setState(() => _showKcal = v),
+                      ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('영양소(탄단지)'),
+                        value: _showMacros ?? true,
+                        activeThumbColor: FoodietColors.coral500,
+                        onChanged: (v) => setState(() => _showMacros = v),
+                      ),
+                      const SizedBox(height: FoodietShape.sp12),
+                      Text('한마디 (선택)',
+                          style: FoodietText.bodySm.copyWith(
+                              color: FoodietColors.warm700,
+                              fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: _caption,
+                        maxLength: 200,
+                        maxLines: 1,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) =>
+                            FocusScope.of(context).unfocus(),
+                        decoration: const InputDecoration(
+                          hintText: '예: 점심 닭가슴살 굿!',
+                        ),
+                      ),
+                      const SizedBox(height: FoodietShape.sp24),
+                      PrimaryButton(
+                        label: _saving ? '공유 중…' : '공유하기',
+                        onPressed: _saving ? null : () => _submit(done),
+                      ),
+                    ],
+                  ),
                 );
               },
             );

@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/community_provider.dart';
 import '../../services/community/community_models.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 import 'community_card.dart';
 import 'community_comments_sheet.dart';
@@ -227,40 +228,42 @@ class _GroupFeed extends ConsumerWidget {
                       ),
                     ],
                   )
-                : ListView.separated(
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    padding: const EdgeInsets.fromLTRB(
-                        FoodietShape.sp16, FoodietShape.sp8,
-                        FoodietShape.sp16, FoodietShape.sp40),
-                    itemCount: isAll ? posts.length : posts.length + 1,
-                    separatorBuilder: (_, __) =>
-                        const SizedBox(height: FoodietShape.sp12),
-                    itemBuilder: (_, i) {
-                      if (!isAll && i == 0) {
-                        return _GroupHeader(
-                          group: group,
-                          onShareToday: () =>
-                              context.push('/community/share-today'),
-                          onMembers: () => context
-                              .push('/community/group/$groupId/members'),
-                          onSettings: () => context
-                              .push('/community/group/$groupId/settings'),
+                : ReadableGutter(
+                    min: FoodietShape.sp16,
+                    builder: (_, gutter) => ListView.separated(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      padding: EdgeInsets.fromLTRB(gutter, FoodietShape.sp8, gutter,
+                          FoodietShape.sp40 + DuoChromeInsets.scrollBottomOf(context)),
+                      itemCount: isAll ? posts.length : posts.length + 1,
+                      separatorBuilder: (_, __) =>
+                          const SizedBox(height: FoodietShape.sp12),
+                      itemBuilder: (_, i) {
+                        if (!isAll && i == 0) {
+                          return _GroupHeader(
+                            group: group,
+                            onShareToday: () =>
+                                context.push('/community/share-today'),
+                            onMembers: () => context
+                                .push('/community/group/$groupId/members'),
+                            onSettings: () => context
+                                .push('/community/group/$groupId/settings'),
+                          );
+                        }
+                        final postIndex = isAll ? i : i - 1;
+                        final post = posts[postIndex];
+                        final pg = groupById[post.groupId];
+                        return CommunityCard(
+                          post: post,
+                          // "전체" 모드에서만 카드 헤더에 그룹 컨텍스트 표시.
+                          groupEmoji: isAll ? pg?.emoji : null,
+                          groupName: isAll ? pg?.name : null,
+                          // 댓글 진입은 시트로 — 별도 라우트 X.
+                          onTap: () =>
+                              CommunityCommentsSheet.show(context, post),
                         );
-                      }
-                      final postIndex = isAll ? i : i - 1;
-                      final post = posts[postIndex];
-                      final pg = groupById[post.groupId];
-                      return CommunityCard(
-                        post: post,
-                        // "전체" 모드에서만 카드 헤더에 그룹 컨텍스트 표시.
-                        groupEmoji: isAll ? pg?.emoji : null,
-                        groupName: isAll ? pg?.name : null,
-                        // 댓글 진입은 시트로 — 별도 라우트 X.
-                        onTap: () =>
-                            CommunityCommentsSheet.show(context, post),
-                      );
-                    },
+                      },
+                    ),
                   ),
           ),
         );

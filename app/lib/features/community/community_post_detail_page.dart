@@ -13,6 +13,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/community_provider.dart';
 import '../../services/community/community_models.dart';
 import '../../services/community/community_service.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/signed_network_image.dart';
 
@@ -180,6 +181,7 @@ Future<void> _openReportSheet(
     context: context,
     backgroundColor: FoodietColors.cream00,
     isScrollControlled: true,
+    useSafeArea: true, // 상태바·좌우 inset(Duo 카메라, Split View) 회피
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
           top: Radius.circular(FoodietShape.radiusLg)),
@@ -310,95 +312,96 @@ class _PostBody extends ConsumerWidget {
       reactionCounts[r.reaction] = (reactionCounts[r.reaction] ?? 0) + 1;
     }
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(
-          FoodietShape.sp20, 0, FoodietShape.sp20, FoodietShape.sp40),
-      children: [
-        Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: const BoxDecoration(
-                color: FoodietColors.coral100,
-                shape: BoxShape.circle,
+    return ReadableGutter(
+      builder: (_, gutter) => ListView(
+        padding: EdgeInsets.fromLTRB(gutter, 0, gutter, FoodietShape.sp40),
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(
+                  color: FoodietColors.coral100,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: const Text('🍓', style: TextStyle(fontSize: 20)),
               ),
-              alignment: Alignment.center,
-              child: const Text('🍓', style: TextStyle(fontSize: 20)),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(post.nickname ?? '구성원',
-                      style: FoodietText.body.copyWith(
-                          color: FoodietColors.warm900,
-                          fontWeight: FontWeight.w700)),
-                  Text(DateFormat('M월 d일').format(post.postDate),
-                      style: FoodietText.caption
-                          .copyWith(color: FoodietColors.warm500)),
-                ],
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(post.nickname ?? '구성원',
+                        style: FoodietText.body.copyWith(
+                            color: FoodietColors.warm900,
+                            fontWeight: FontWeight.w700)),
+                    Text(DateFormat('M월 d일').format(post.postDate),
+                        style: FoodietText.caption
+                            .copyWith(color: FoodietColors.warm500)),
+                  ],
+                ),
               ),
-            ),
-          ],
-        ),
-        if (post.showPhotos && post.photoPaths.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 240,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: post.photoPaths.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (_, i) => ClipRRect(
-                borderRadius:
-                    BorderRadius.circular(FoodietShape.radiusMd),
-                child: SizedBox(
-                  width: 240,
-                  child: SignedNetworkImage(
-                    path: post.photoPaths[i],
-                    fit: BoxFit.cover,
+            ],
+          ),
+          if (post.showPhotos && post.photoPaths.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 240,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: post.photoPaths.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (_, i) => ClipRRect(
+                  borderRadius:
+                      BorderRadius.circular(FoodietShape.radiusMd),
+                  child: SizedBox(
+                    width: 240,
+                    child: SignedNetworkImage(
+                      path: post.photoPaths[i],
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
               ),
             ),
+          ],
+          const SizedBox(height: 16),
+          _BadgeBlock(post: post),
+          if (post.caption != null && post.caption!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(post.caption!,
+                style: FoodietText.body.copyWith(color: FoodietColors.warm700)),
+          ],
+          const SizedBox(height: 16),
+          _ReactionBar(
+            counts: reactionCounts,
+            mine: myReactions,
+            onTap: (kind) => _toggleReaction(ref, kind, myReactions),
           ),
+          const SizedBox(height: 24),
+          if (canTip)
+            _TipComposer(postId: post.id, groupId: groupId),
+          const SizedBox(height: 12),
+          if (tips.isEmpty)
+            Center(
+              child: Text(
+                canTip
+                    ? '아직 조언이 없어요. 첫 조언을 남겨볼까?'
+                    : '응원해주는 사람이 있어요!',
+                style:
+                    FoodietText.bodySm.copyWith(color: FoodietColors.warm500),
+              ),
+            )
+          else
+            ...tips.map((t) => _TipRow(
+                  tip: t,
+                  groupId: groupId,
+                  isMine: t.userId == myUserId,
+                )),
         ],
-        const SizedBox(height: 16),
-        _BadgeBlock(post: post),
-        if (post.caption != null && post.caption!.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Text(post.caption!,
-              style: FoodietText.body.copyWith(color: FoodietColors.warm700)),
-        ],
-        const SizedBox(height: 16),
-        _ReactionBar(
-          counts: reactionCounts,
-          mine: myReactions,
-          onTap: (kind) => _toggleReaction(ref, kind, myReactions),
-        ),
-        const SizedBox(height: 24),
-        if (canTip)
-          _TipComposer(postId: post.id, groupId: groupId),
-        const SizedBox(height: 12),
-        if (tips.isEmpty)
-          Center(
-            child: Text(
-              canTip
-                  ? '아직 조언이 없어요. 첫 조언을 남겨볼까?'
-                  : '응원해주는 사람이 있어요!',
-              style:
-                  FoodietText.bodySm.copyWith(color: FoodietColors.warm500),
-            ),
-          )
-        else
-          ...tips.map((t) => _TipRow(
-                tip: t,
-                groupId: groupId,
-                isMine: t.userId == myUserId,
-              )),
-      ],
+      ),
     );
   }
 

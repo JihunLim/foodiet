@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 import '../../providers/community_provider.dart';
 import '../../services/community/community_models.dart';
 import '../../services/community/community_service.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 
 class CommunityMyInvitesPage extends ConsumerStatefulWidget {
@@ -162,20 +163,24 @@ class _CommunityMyInvitesPageState
                   ],
                 );
               }
-              return ListView.separated(
-                padding: const EdgeInsets.all(FoodietShape.sp16),
-                itemCount: invites.length,
-                separatorBuilder: (_, __) =>
-                    const SizedBox(height: FoodietShape.sp12),
-                itemBuilder: (_, i) {
-                  final inv = invites[i];
-                  return _InviteCard(
-                    invite: inv,
-                    busy: _busyIds.contains(inv.id),
-                    onAccept: () => _accept(inv),
-                    onDecline: () => _decline(inv),
-                  );
-                },
+              return ReadableGutter(
+                min: FoodietShape.sp16,
+                builder: (_, gutter) => ListView.separated(
+                  padding: EdgeInsets.fromLTRB(
+                      gutter, FoodietShape.sp16, gutter, FoodietShape.sp16),
+                  itemCount: invites.length,
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(height: FoodietShape.sp12),
+                  itemBuilder: (_, i) {
+                    final inv = invites[i];
+                    return _InviteCard(
+                      invite: inv,
+                      busy: _busyIds.contains(inv.id),
+                      onAccept: () => _accept(inv),
+                      onDecline: () => _decline(inv),
+                    );
+                  },
+                ),
               );
             },
           ),

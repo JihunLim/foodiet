@@ -13,6 +13,7 @@ Future<void> showMealPlanFormSheet(BuildContext context) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true, // 상태바·좌우 inset(Duo 카메라, Split View) 회피
     backgroundColor: Colors.transparent,
     builder: (_) => const _MealPlanFormSheet(),
   );

@@ -9,6 +9,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/community_provider.dart';
 import '../../services/community/community_models.dart';
 import '../../services/community/community_service.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 
 class CommunityGroupMembersPage extends ConsumerWidget {
@@ -48,16 +49,20 @@ class CommunityGroupMembersPage extends ConsumerWidget {
             final group = groupAsync.valueOrNull;
             final isOwner =
                 group != null && group.createdBy == myUserId;
-            return ListView.separated(
-              padding: const EdgeInsets.all(FoodietShape.sp16),
-              itemCount: members.length,
-              separatorBuilder: (_, __) =>
-                  const Divider(height: 1, color: FoodietColors.cream100),
-              itemBuilder: (_, i) => _MemberRow(
-                member: members[i],
-                isMyselfOwner: isOwner,
-                isMyself: members[i].userId == myUserId,
-                groupId: groupId,
+            return ReadableGutter(
+              min: FoodietShape.sp16,
+              builder: (_, gutter) => ListView.separated(
+                padding: EdgeInsets.fromLTRB(
+                    gutter, FoodietShape.sp16, gutter, FoodietShape.sp16),
+                itemCount: members.length,
+                separatorBuilder: (_, __) =>
+                    const Divider(height: 1, color: FoodietColors.cream100),
+                itemBuilder: (_, i) => _MemberRow(
+                  member: members[i],
+                  isMyselfOwner: isOwner,
+                  isMyself: members[i].userId == myUserId,
+                  groupId: groupId,
+                ),
               ),
             );
           },

@@ -17,6 +17,7 @@ import 'package:intl/intl.dart';
 
 import '../../providers/profile_provider.dart';
 import '../../services/nickname_service.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/primary_button.dart';
 
@@ -175,98 +176,100 @@ class _NicknameEditPageState extends ConsumerState<NicknameEditPage> {
             style: FoodietText.h3.copyWith(color: FoodietColors.warm900)),
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(FoodietShape.sp20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('커뮤니티에서 사용할 이름이에요.',
-                  style: FoodietText.bodySm
-                      .copyWith(color: FoodietColors.warm500)),
-              const SizedBox(height: FoodietShape.sp16),
-              if (!canChangeNow && availableAt != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(FoodietShape.sp12),
-                  decoration: BoxDecoration(
-                    color: FoodietColors.cream50,
-                    borderRadius:
-                        BorderRadius.circular(FoodietShape.radiusMd),
-                    border: Border.all(color: FoodietColors.cream100),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.info_outline,
-                          color: FoodietColors.warm500, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          '${DateFormat('M월 d일').format(availableAt)} 이후에 다시 변경할 수 있어요.\n(닉네임은 30일에 한 번만 변경 가능)',
-                          style: FoodietText.caption.copyWith(
-                              color: FoodietColors.warm700, height: 1.4),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+        child: ReadableWidth(
+          child: Padding(
+            padding: const EdgeInsets.all(FoodietShape.sp20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('커뮤니티에서 사용할 이름이에요.',
+                    style: FoodietText.bodySm
+                        .copyWith(color: FoodietColors.warm500)),
                 const SizedBox(height: FoodietShape.sp16),
-              ],
-              TextField(
-                controller: _ctrl,
-                focusNode: _focus,
-                enabled: canChangeNow && !_saving,
-                maxLength: 12,
-                inputFormatters: [
-                  FilteringTextInputFormatter.deny(RegExp(r'\s')),
-                ],
-                decoration: InputDecoration(
-                  hintText: '예: 활발한_딸기_042',
-                  filled: true,
-                  fillColor: FoodietColors.cream50,
-                  border: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(FoodietShape.radiusMd),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(FoodietShape.radiusMd),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(FoodietShape.radiusMd),
-                    borderSide: const BorderSide(
-                      color: FoodietColors.coral500,
-                      width: 1.5,
+                if (!canChangeNow && availableAt != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(FoodietShape.sp12),
+                    decoration: BoxDecoration(
+                      color: FoodietColors.cream50,
+                      borderRadius:
+                          BorderRadius.circular(FoodietShape.radiusMd),
+                      border: Border.all(color: FoodietColors.cream100),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline,
+                            color: FoodietColors.warm500, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '${DateFormat('M월 d일').format(availableAt)} 이후에 다시 변경할 수 있어요.\n(닉네임은 30일에 한 번만 변경 가능)',
+                            style: FoodietText.caption.copyWith(
+                                color: FoodietColors.warm700, height: 1.4),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  suffixIcon: _StatusSuffix(state: _check),
-                ),
-                onChanged: _onChanged,
-              ),
-              if (_hintMessage != null) ...[
-                const SizedBox(height: 6),
-                Text(
-                  _hintMessage!,
-                  style: FoodietText.caption.copyWith(
-                    color: switch (_check) {
-                      _CheckState.available => FoodietColors.leaf700,
-                      _CheckState.taken => FoodietColors.danger,
-                      _CheckState.invalidFormat => FoodietColors.danger,
-                      _CheckState.error => FoodietColors.warning,
-                      _ => FoodietColors.warm500,
-                    },
+                  const SizedBox(height: FoodietShape.sp16),
+                ],
+                TextField(
+                  controller: _ctrl,
+                  focusNode: _focus,
+                  enabled: canChangeNow && !_saving,
+                  maxLength: 12,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.deny(RegExp(r'\s')),
+                  ],
+                  decoration: InputDecoration(
+                    hintText: '예: 활발한_딸기_042',
+                    filled: true,
+                    fillColor: FoodietColors.cream50,
+                    border: OutlineInputBorder(
+                      borderRadius:
+                          BorderRadius.circular(FoodietShape.radiusMd),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius:
+                          BorderRadius.circular(FoodietShape.radiusMd),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius:
+                          BorderRadius.circular(FoodietShape.radiusMd),
+                      borderSide: const BorderSide(
+                        color: FoodietColors.coral500,
+                        width: 1.5,
+                      ),
+                    ),
+                    suffixIcon: _StatusSuffix(state: _check),
                   ),
+                  onChanged: _onChanged,
+                ),
+                if (_hintMessage != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    _hintMessage!,
+                    style: FoodietText.caption.copyWith(
+                      color: switch (_check) {
+                        _CheckState.available => FoodietColors.leaf700,
+                        _CheckState.taken => FoodietColors.danger,
+                        _CheckState.invalidFormat => FoodietColors.danger,
+                        _CheckState.error => FoodietColors.warning,
+                        _ => FoodietColors.warm500,
+                      },
+                    ),
+                  ),
+                ],
+                const SizedBox(height: FoodietShape.sp16),
+                _Rules(),
+                const Spacer(),
+                PrimaryButton(
+                  label: _saving ? '저장 중…' : '저장',
+                  onPressed: _canSave ? _save : null,
                 ),
               ],
-              const SizedBox(height: FoodietShape.sp16),
-              _Rules(),
-              const Spacer(),
-              PrimaryButton(
-                label: _saving ? '저장 중…' : '저장',
-                onPressed: _canSave ? _save : null,
-              ),
-            ],
+            ),
           ),
         ),
       ),

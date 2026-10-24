@@ -10,6 +10,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../providers/meal_plan_provider.dart';
 import '../../services/meal_plan_service.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/primary_button.dart';
 import 'meal_detail_page.dart';
@@ -29,41 +30,39 @@ class MealPlanTab extends ConsumerWidget {
       onRefresh: () async {
         ref.invalidate(thisWeekMealPlanProvider);
       },
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(
-          FoodietShape.sp20,
-          FoodietShape.sp8,
-          FoodietShape.sp20,
-          FoodietShape.sp40,
-        ),
-        children: [
-          if (gen.generating)
-            const _GeneratingPlan()
-          else if (gen.error != null)
-            _GenErrorPlan(message: gen.error!)
-          else
-            planAsync.when(
-              loading: () => const Padding(
-                padding: EdgeInsets.symmetric(vertical: 40),
-                child: Center(
-                  child: CircularProgressIndicator(
-                      color: FoodietColors.coral500),
+      child: ReadableGutter(
+        builder: (_, gutter) => ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(gutter, FoodietShape.sp8, gutter,
+              FoodietShape.sp40 + DuoChromeInsets.scrollBottomOf(context)),
+          children: [
+            if (gen.generating)
+              const _GeneratingPlan()
+            else if (gen.error != null)
+              _GenErrorPlan(message: gen.error!)
+            else
+              planAsync.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40),
+                  child: Center(
+                    child: CircularProgressIndicator(
+                        color: FoodietColors.coral500),
+                  ),
                 ),
+                error: (e, _) => _ErrorPlan(error: e),
+                data: (plan) => plan == null
+                    ? const _EmptyPlan()
+                    : _PlanContent(plan: plan),
               ),
-              error: (e, _) => _ErrorPlan(error: e),
-              data: (plan) => plan == null
-                  ? const _EmptyPlan()
-                  : _PlanContent(plan: plan),
+            const SizedBox(height: FoodietShape.sp24),
+            // 의학적 조언 아님 + 산출 근거 — App Store 1.4.1 대응.
+            Center(
+              child: MealPlanCitationsLink(
+                plan: planAsync.valueOrNull,
+              ),
             ),
-          const SizedBox(height: FoodietShape.sp24),
-          // 의학적 조언 아님 + 산출 근거 — App Store 1.4.1 대응.
-          Center(
-            child: MealPlanCitationsLink(
-              plan: planAsync.valueOrNull,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
