@@ -127,7 +127,7 @@ class _MealPlanCitationsSheet extends StatelessWidget {
                 url: 'https://fdc.nal.usda.gov/',
               ),
               const SizedBox(height: FoodietShape.sp16),
-              _modelNote(plan?.sourceModel ?? 'gpt-5.4-mini'),
+              _modelNote(plan?.sourceModel ?? 'claude-opus-5-5'),
             ],
           ),
         ),
@@ -256,9 +256,11 @@ class _MealPlanCitationsSheet extends StatelessWidget {
     );
   }
 
+  // 예전 식단(source_model='gpt-…')도 남아 있으니 모델 ID 로 제공사를 고른다.
   Widget _modelNote(String model) {
+    final vendor = model.startsWith('gpt') ? 'OpenAI' : 'Anthropic';
     return Text(
-      '생성에는 OpenAI $model 모델을 사용했고, 사용자의 프로필·폼 입력 외에는 다른 개인 정보를 모델에 보내지 않아.',
+      '생성에는 $vendor $model 모델을 사용했고, 사용자의 프로필·폼 입력 외에는 다른 개인 정보를 모델에 보내지 않아.',
       style: FoodietText.caption
           .copyWith(color: FoodietColors.warm500, height: 1.6),
     );

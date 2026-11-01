@@ -6,19 +6,19 @@
 //
 // 순서
 //   1) entries row 조회 (service role — RLS 우회)
-//   2) food-photos 버킷에서 서명 URL 생성 (5분)
-//   3) OpenAI gpt-5.5 Vision 호출 (response_format: json_schema)
+//   2) food-photos 버킷에서 사진 다운로드 (base64 로 Claude 에 직접 전달)
+//   3) Claude Vision 호출 (structured outputs: json_schema) — _shared/claude.ts
 //   4) entries UPDATE + entry_items 다중 INSERT
 //   5) 신뢰도 낮거나 meal_slot 경계시간이면 coach_messages 로 "확인해줘" 전송
 //
 // ENV (Supabase Dashboard → Edge Functions → Secrets):
 //   SUPABASE_URL
 //   SUPABASE_SERVICE_ROLE_KEY
-//   OPENAI_API_KEY
-//   OPENAI_MODEL           (default 'gpt-5.5')
-//   OPENAI_ENDPOINT        (default 'https://api.openai.com/v1/chat/completions')
+//   ANTHROPIC_API_KEY
+//   ANTHROPIC_MODEL        (default 'claude-opus-5-5')
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { claudeJson } from '../_shared/claude.ts';
 
 const admin = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -26,46 +26,7 @@ const admin = createClient(
   { auth: { persistSession: false } },
 );
 
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!;
-const OPENAI_MODEL = Deno.env.get('OPENAI_MODEL') ?? 'gpt-5.5';
-const OPENAI_ENDPOINT =
-  Deno.env.get('OPENAI_ENDPOINT') ?? 'https://api.openai.com/v1/chat/completions';
 const BUCKET = 'food-photos';
-
-// OpenAI chat completions 호출. gpt-5.x(reasoning 계열)은 temperature 를 거부하므로
-// 보내지 않고, 모델이 거부하는 선택 파라미터(reasoning_effort 등)는 400 응답을 보고
-// 그 키만 떨군 뒤 재시도한다. generate-meal-plan 과 동일한 패턴.
-async function openaiChat(
-  base: Record<string, unknown>,
-  params: Record<string, unknown>,
-): Promise<unknown> {
-  const post = () =>
-    fetch(OPENAI_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${OPENAI_API_KEY}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({ ...base, ...params }),
-    });
-  let resp = await post();
-  for (let attempt = 0; attempt < 2 && !resp.ok && resp.status === 400; attempt++) {
-    const errText = await resp.text();
-    const lower = errText.toLowerCase();
-    const dropped = Object.keys(params).filter((p) => lower.includes(p.toLowerCase()));
-    if (dropped.length === 0) {
-      throw new Error(`OpenAI 400: ${errText.slice(0, 300)}`);
-    }
-    for (const p of dropped) delete params[p];
-    console.warn(`analyze-entry: openai 400 dropping [${dropped.join(',')}]`);
-    resp = await post();
-  }
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => '');
-    throw new Error(`OpenAI ${resp.status}: ${text.slice(0, 300)}`);
-  }
-  return await resp.json();
-}
 
 // §9 — meal_slot 경계시간 (로컬 시각 기준). LLM 결정에 더해 시각 prior 로 사용.
 function timeBasedMealSlot(isoCapturedAt: string, locale: string) {
@@ -94,60 +55,56 @@ function timeBoundaryMinutes(isoCapturedAt: string, locale: string) {
 }
 
 const RESPONSE_SCHEMA = {
-  name: 'foodiet_analysis',
-  strict: true,
-  schema: {
-    type: 'object',
-    additionalProperties: false,
-    required: ['meal_slot', 'eating_type', 'items', 'totals', 'confidence'],
-    properties: {
-      meal_slot: {
-        type: 'string',
-        enum: ['breakfast', 'lunch', 'dinner', 'late_night'],
-      },
-      eating_type: {
-        type: 'string',
-        enum: ['meal', 'snack', 'beverage'],
-      },
+  type: 'object',
+  additionalProperties: false,
+  required: ['meal_slot', 'eating_type', 'items', 'totals', 'confidence'],
+  properties: {
+    meal_slot: {
+      type: 'string',
+      enum: ['breakfast', 'lunch', 'dinner', 'late_night'],
+    },
+    eating_type: {
+      type: 'string',
+      enum: ['meal', 'snack', 'beverage'],
+    },
+    items: {
+      type: 'array',
       items: {
-        type: 'array',
-        items: {
-          type: 'object',
-          additionalProperties: false,
-          required: [
-            'name', 'qty_g', 'kcal',
-            'carb_g', 'protein_g', 'fat_g',
-            'sodium_mg', 'sugar_g', 'confidence',
-          ],
-          properties: {
-            name: { type: 'string' },
-            qty_g: { type: 'number' },
-            kcal: { type: 'integer' },
-            carb_g: { type: 'number' },
-            protein_g: { type: 'number' },
-            fat_g: { type: 'number' },
-            sodium_mg: { type: 'integer' },
-            sugar_g: { type: 'number' },
-            confidence: { type: 'number', minimum: 0, maximum: 1 },
-          },
-        },
-      },
-      totals: {
         type: 'object',
         additionalProperties: false,
-        required: ['kcal', 'carb_g', 'protein_g', 'fat_g',
-                   'sodium_mg', 'sugar_g'],
+        required: [
+          'name', 'qty_g', 'kcal',
+          'carb_g', 'protein_g', 'fat_g',
+          'sodium_mg', 'sugar_g', 'confidence',
+        ],
         properties: {
+          name: { type: 'string' },
+          qty_g: { type: 'number' },
           kcal: { type: 'integer' },
           carb_g: { type: 'number' },
           protein_g: { type: 'number' },
           fat_g: { type: 'number' },
           sodium_mg: { type: 'integer' },
           sugar_g: { type: 'number' },
+          confidence: { type: 'number', description: '0~1' },
         },
       },
-      confidence: { type: 'number', minimum: 0, maximum: 1 },
     },
+    totals: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['kcal', 'carb_g', 'protein_g', 'fat_g',
+                 'sodium_mg', 'sugar_g'],
+      properties: {
+        kcal: { type: 'integer' },
+        carb_g: { type: 'number' },
+        protein_g: { type: 'number' },
+        fat_g: { type: 'number' },
+        sodium_mg: { type: 'integer' },
+        sugar_g: { type: 'number' },
+      },
+    },
+    confidence: { type: 'number', description: '0~1' },
   },
 } as const;
 
@@ -176,7 +133,24 @@ type LlmResult = {
   confidence: number;
 };
 
-async function analyze(imageUrl: string, capturedAt: string, locale: string) {
+// Storage 객체 → base64. Claude 가 서명 URL 을 직접 fetch 하게 두지 않고 함수가
+// 바로 넘긴다 (외부 fetch 실패 지점 제거). 클라이언트는 1600px q80 JPEG 로 올린다.
+function toBase64(bytes: Uint8Array): string {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(bin);
+}
+
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const;
+type ImageType = typeof IMAGE_TYPES[number];
+
+function clamp01(x: number) {
+  return Number.isFinite(x) ? Math.min(1, Math.max(0, x)) : 0;
+}
+
+async function analyze(photo: Blob, capturedAt: string, locale: string) {
   const priorSlot = timeBasedMealSlot(capturedAt, locale) ?? 'unknown';
 
   const systemPrompt = `You are a nutrition analyst for a Korean diet tracking app.
@@ -197,34 +171,28 @@ Rules:
   const userPrompt = `Captured at: ${capturedAt} (locale=${locale}).
 Return JSON only. No prose.`;
 
-  const base = {
-    model: OPENAI_MODEL,
-    messages: [
-      { role: 'system', content: systemPrompt },
+  const mediaType: ImageType = (IMAGE_TYPES as readonly string[]).includes(photo.type)
+    ? photo.type as ImageType
+    : 'image/jpeg';
+  const parsed = await claudeJson<LlmResult>({
+    tag: 'analyze-entry',
+    system: systemPrompt,
+    content: [
       {
-        role: 'user',
-        content: [
-          { type: 'text', text: userPrompt },
-          { type: 'image_url', image_url: { url: imageUrl, detail: 'low' } },
-        ],
+        type: 'image',
+        source: {
+          type: 'base64',
+          media_type: mediaType,
+          data: toBase64(new Uint8Array(await photo.arrayBuffer())),
+        },
       },
+      { type: 'text', text: userPrompt },
     ],
-    response_format: { type: 'json_schema', json_schema: RESPONSE_SCHEMA },
-  };
-  // reasoning 계열 지연 완화용. 모델이 거부하면 openaiChat 이 자동으로 떨군다.
-  const params: Record<string, unknown> = { reasoning_effort: 'low' };
-
-  const json = await openaiChat(base, params) as
-    { choices?: Array<{ message?: { content?: string } }> };
-  const content: string | undefined = json?.choices?.[0]?.message?.content;
-  if (!content) throw new Error('OpenAI: empty content');
-
-  let parsed: LlmResult;
-  try {
-    parsed = JSON.parse(content) as LlmResult;
-  } catch (e) {
-    throw new Error(`OpenAI: invalid JSON: ${(e as Error).message}`);
-  }
+    schema: RESPONSE_SCHEMA,
+  });
+  // structured outputs 는 minimum/maximum 을 강제하지 못하므로 여기서 0..1 로 맞춘다.
+  parsed.confidence = clamp01(parsed.confidence);
+  for (const it of parsed.items) it.confidence = clamp01(it.confidence);
   return parsed;
 }
 
@@ -258,21 +226,21 @@ Deno.serve(async (req) => {
     });
   }
 
-  // 2) 서명 URL
-  const { data: signed, error: sErr } = await admin.storage
+  // 2) 사진 다운로드
+  const { data: photo, error: dErr } = await admin.storage
     .from(BUCKET)
-    .createSignedUrl(entry.image_path, 300);
-  if (sErr || !signed?.signedUrl) {
-    console.error('sign url error', sErr);
+    .download(entry.image_path);
+  if (dErr || !photo) {
+    console.error('photo download error', dErr);
     await admin.from('entries').update({ status: 'failed' }).eq('id', entry_id);
-    return new Response('sign url failed', { status: 500 });
+    return new Response('photo download failed', { status: 500 });
   }
 
   // 3) LLM 호출
   let result: LlmResult;
   try {
     result = await analyze(
-      signed.signedUrl,
+      photo,
       entry.captured_at,
       entry.locale ?? 'ko',
     );

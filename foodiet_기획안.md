@@ -775,7 +775,7 @@ create policy "own_notifications" on public.notifications
 4. ~~**디자인 원본**~~ → ✅ **zip 번들 수신·적용 완료** (`design-system/`). §7은 해당 토큰/컴포넌트 기준으로 확정.
 5. ~~**해외 확장 시점**~~ → ✅ **MVP부터 i18n 골격 포함**, ja/zh는 v1.1, es/de/en-US는 v1.2+ (§15). 단위(kcal/kJ, kg/lb)·로케일 스냅샷은 `profiles`에 컬럼화(§13.2).
 6. ~~**백엔드 선택**~~ → ✅ **Supabase 확정** (Auth/Postgres/Storage/Edge Functions/Realtime). publishable 키 `.env` 관리.
-7. ~~**LLM 벤더**~~ → ✅ **OpenAI `gpt-5.4-mini` (Vision)** 확정. Edge Function `analyze-entry`·`generate-coach`에서 호출. `OPENAI_API_KEY`·`OPENAI_MODEL`은 Edge Function 환경변수로만 주입.
+7. ~~**LLM 벤더**~~ → ✅ **Anthropic Claude `claude-opus-5-5` (Vision)** 로 전환 (2026-11, 이전: OpenAI `gpt-5.4-mini`→`gpt-5.5`). Edge Function `analyze-entry`·`home-coach`·`generate-meal-plan`에서 `_shared/claude.ts` 로 호출. `ANTHROPIC_API_KEY`·`ANTHROPIC_MODEL`은 Edge Function 환경변수로만 주입.
 8. ~~**Supabase 리전**~~ → ✅ **ap-northeast-2 (Seoul)** 확정. 해외 확장 시 CDN/서명 URL로 지연 보정.
 9. ~~**식품 DB 소스**~~ → ✅ **하이브리드** 확정: 식약처 공공 DB 베이스 + 한식·편의점·프랜차이즈 상위 **500개** 자체 큐레이션. 미커버 음식은 LLM 추정(confidence 낮게).
 10. ~~**소셜 로그인 조합**~~ → ✅ **Apple + Google + Kakao** 확정. `profiles.locale != 'ko'` 인 경우 UI 단에서 Kakao 버튼 숨김.
