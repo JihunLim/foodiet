@@ -14,9 +14,9 @@
 
 ### 1. 시크릿 노출 (✅ PASS)
 - `app/.env.example` 에 publishable key 만 존재 (`sb_publishable_...`).
-  서비스 롤·OPENAI·FCM service account 는 모두 주석 처리, Edge Function Secrets 로만 주입.
+  서비스 롤·ANTHROPIC·FCM service account 는 모두 주석 처리, Edge Function Secrets 로만 주입.
 - `app/.gitignore` 에 `.env`, `.env.local`, `.env.*.local` 모두 포함.
-- 클라이언트 코드 (`lib/`) 어디에도 service_role / OPENAI / INTERNAL_PUSH_TOKEN
+- 클라이언트 코드 (`lib/`) 어디에도 service_role / ANTHROPIC / INTERNAL_PUSH_TOKEN
   하드코딩 없음.
 
 ### 2. RLS (Row Level Security) (✅ PASS)
@@ -52,7 +52,7 @@ RLS:
   manual verification → 미인증 시 401 + 사용자별 일일 5회 캐시 + 시간대 슬롯 제한.
 - `analyze-entry`: 인증 없음. 단 `entry_id` UUID 가 필요 (랜덤 추측 불가능,
   `status='done'` 인 entry 는 idempotent skip → LLM 비용 차단).
-  ⚠️ 자기 계정으로 의도적 abuse 시 OpenAI 비용 burnable. v1.1 에서 per-user
+  ⚠️ 자기 계정으로 의도적 abuse 시 LLM(Anthropic) 비용 burnable. v1.1 에서 per-user
   rate limit 추가 권장 (영향: 최악 ~$10 / 사용자 자기파괴).
 
 ### 5. 클라이언트 로깅 (✅ PASS)
@@ -109,7 +109,7 @@ Apple Privacy Guideline 5.1.1 (사용자 데이터 완전 삭제) 준수.
 ## ⚠️ 알려진 한계 (블로킹 아님, v1.1 권장)
 
 ### A. analyze-entry — Edge Function rate limit 없음
-- 시나리오: 악성 사용자가 자기 계정으로 1000장 업로드 + analyze 트리거 → ~$10 OpenAI 비용 burn
+- 시나리오: 악성 사용자가 자기 계정으로 1000장 업로드 + analyze 트리거 → ~$40 LLM(Anthropic, 장당 ~$0.04 실측) 비용 burn
 - **완화책 (v1.1)**: per-user daily limit (e.g., 100 분석 / 일) 추가
 - 1.0 출시 영향: **무시 가능** (소규모 베타 + 사용자 abuse 비용은 자기 시간)
 

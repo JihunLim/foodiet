@@ -139,7 +139,7 @@ class MealPlan {
       weekStartDate: DateTime.parse(row['week_start_date'] as String),
       createdAt:
           DateTime.parse(row['created_at'] as String).toLocal(),
-      sourceModel: (row['source_model'] as String?) ?? 'gpt',
+      sourceModel: (row['source_model'] as String?) ?? 'claude',
       weeklySummary: (plan['weekly_summary'] as String?) ?? '',
       caveats: (plan['caveats'] as List?)
               ?.map((e) => e.toString())

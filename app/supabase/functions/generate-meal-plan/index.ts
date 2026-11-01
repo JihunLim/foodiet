@@ -20,21 +20,17 @@
 //   { id, week_start_date, plan_json, source_model }
 //
 // ENV:
-//   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY,
-//   OPENAI_MODEL (default 'gpt-5.5'), OPENAI_ENDPOINT (default openai chat).
+//   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ANTHROPIC_API_KEY,
+//   ANTHROPIC_MODEL (default 'claude-opus-5-5').
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { CLAUDE_MODEL, claudeJson } from '../_shared/claude.ts';
 
 const admin = createClient(
   Deno.env.get('SUPABASE_URL')!,
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   { auth: { persistSession: false } },
 );
-
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!;
-const OPENAI_MODEL = Deno.env.get('OPENAI_MODEL') ?? 'gpt-5.5';
-const OPENAI_ENDPOINT =
-  Deno.env.get('OPENAI_ENDPOINT') ?? 'https://api.openai.com/v1/chat/completions';
 
 const DEFAULT_TZ_OFFSET_MIN = 540;
 
@@ -112,52 +108,45 @@ const MEAL_SCHEMA = {
 // 1단계: 일주일 메뉴 뼈대 — 요리 이름·끼니·목표 칼로리만. 출력이 작아 빠르고,
 // 7일을 한 컨텍스트에서 함께 짜 메뉴 중복을 막고 주간 다양성을 확보한다.
 const SKELETON_SCHEMA = {
-  name: 'foodiet_meal_skeleton',
-  strict: true,
-  schema: {
-    type: 'object',
-    additionalProperties: false,
-    required: ['weekly_summary', 'caveats', 'days'],
-    properties: {
-      weekly_summary: {
-        type: 'string',
-        description: '이번 주 식단 컨셉 1~2문장 요약 (반말).',
-      },
-      caveats: {
-        type: 'array',
-        items: { type: 'string' },
-        description: '알레르기/제약을 어떻게 반영했는지 한 줄씩.',
-      },
-      days: {
-        type: 'array',
-        minItems: 7,
-        maxItems: 7,
-        items: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['date_offset', 'label', 'meals'],
-          properties: {
-            date_offset: {
-              type: 'integer',
-              minimum: 0,
-              maximum: 6,
-              description: 'week_start_date 로부터 더할 일수 (월=0)',
-            },
-            label: { type: 'string', description: '요일 한글 (예: 월요일)' },
-            meals: {
-              type: 'array',
-              items: {
-                type: 'object',
-                additionalProperties: false,
-                required: ['slot', 'name', 'target_kcal'],
-                properties: {
-                  slot: { type: 'string', enum: ALLOWED_SLOTS as unknown as string[] },
-                  name: {
-                    type: 'string',
-                    description: '요리 이름 (한국식). 한 주에 같은 요리를 반복하지 말 것.',
-                  },
-                  target_kcal: { type: 'integer', description: '이 끼니 목표 칼로리.' },
+  type: 'object',
+  additionalProperties: false,
+  required: ['weekly_summary', 'caveats', 'days'],
+  properties: {
+    weekly_summary: {
+      type: 'string',
+      description: '이번 주 식단 컨셉 1~2문장 요약 (반말).',
+    },
+    caveats: {
+      type: 'array',
+      items: { type: 'string' },
+      description: '알레르기/제약을 어떻게 반영했는지 한 줄씩.',
+    },
+    days: {
+      type: 'array',
+      description: '정확히 7개 (월~일).',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['date_offset', 'label', 'meals'],
+        properties: {
+          date_offset: {
+            type: 'integer',
+            description: 'week_start_date 로부터 더할 일수 0~6 (월=0)',
+          },
+          label: { type: 'string', description: '요일 한글 (예: 월요일)' },
+          meals: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['slot', 'name', 'target_kcal'],
+              properties: {
+                slot: { type: 'string', enum: ALLOWED_SLOTS as unknown as string[] },
+                name: {
+                  type: 'string',
+                  description: '요리 이름 (한국식). 한 주에 같은 요리를 반복하지 말 것.',
                 },
+                target_kcal: { type: 'integer', description: '이 끼니 목표 칼로리.' },
               },
             },
           },
@@ -169,18 +158,14 @@ const SKELETON_SCHEMA = {
 
 // 2단계: 하루치 상세 — 뼈대에서 정한 요리들의 상세 레시피/영양/장보기.
 const DAY_SCHEMA = {
-  name: 'foodiet_meal_day',
-  strict: true,
-  schema: {
-    type: 'object',
-    additionalProperties: false,
-    required: ['date_offset', 'label', 'total_kcal', 'meals'],
-    properties: {
-      date_offset: { type: 'integer', minimum: 0, maximum: 6 },
-      label: { type: 'string', description: '요일 한글 (예: 월요일)' },
-      total_kcal: { type: 'integer' },
-      meals: { type: 'array', items: MEAL_SCHEMA },
-    },
+  type: 'object',
+  additionalProperties: false,
+  required: ['date_offset', 'label', 'total_kcal', 'meals'],
+  properties: {
+    date_offset: { type: 'integer', description: '0~6 (월=0)' },
+    label: { type: 'string', description: '요일 한글 (예: 월요일)' },
+    total_kcal: { type: 'integer' },
+    meals: { type: 'array', items: MEAL_SCHEMA },
   },
 } as const;
 
@@ -238,32 +223,6 @@ function sanitizeSlots(raw: unknown): Slot[] {
   return out;
 }
 
-// OpenAI chat completions 1회 호출. 선택 파라미터(temperature 등)는 params 로
-// 주입하고, 모델이 거부하면 호출부(chat)에서 그 키를 떨군 뒤 재시도한다.
-async function postChat(
-  schema: unknown,
-  system: string,
-  user: string,
-  params: Record<string, unknown>,
-): Promise<Response> {
-  return await fetch(OPENAI_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${OPENAI_API_KEY}`,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: OPENAI_MODEL,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
-      response_format: { type: 'json_schema', json_schema: schema },
-      ...params,
-    }),
-  });
-}
-
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response('method not allowed', { status: 405 });
@@ -300,7 +259,7 @@ Deno.serve(async (req) => {
   const slots = sanitizeSlots(reqBody?.meal_slots);
 
   // 재생성/갱신은 "비파괴적"으로 한다. 기존 plan 을 미리 지우지 않는다 —
-  // 생성이 실패해도(OpenAI 504/네트워크 등) 기존 식단이 그대로 남도록, 아래에서
+  // 생성이 실패해도(LLM 504/네트워크 등) 기존 식단이 그대로 남도록, 아래에서
   // 성공했을 때만 upsert(user_id,week_start_date)로 원자적으로 덮어쓴다.
   // (예전엔 먼저 delete 후 ~80s 생성 → 생성 실패 시 식단이 통째로 사라졌다.)
 
@@ -353,64 +312,30 @@ Deno.serve(async (req) => {
     `${allergies.length ? allergies.join(', ') : '없음'}` +
     `${allergyNotes ? ', ' + allergyNotes : ''}`;
 
-  // gpt-5.x reasoning 계열은 추론 토큰이 지연을 좌우한다. reasoning_effort='low'
-  // 로 추론을 줄여(기본 effort 는 호출당 ~2000 토큰) 7일 병렬 생성이 150s edge
-  // 한도 안에 들어오게 한다. temperature 는 이 계열이 거부하므로 보내지 않는다.
-  // 모델이 특정 파라미터를 거부(400)하면 그 키를 떨군 뒤 재시도한다(1단계에서
-  // 정리되면 2단계 병렬 호출은 정리된 params 를 그대로 쓴다).
-  const params: Record<string, unknown> = { reasoning_effort: 'low' };
-
+  // 호출 1회 — effort='low'·타임아웃·거절 fallback 은 _shared/claude.ts 에서.
+  // 실패는 { error } 로 돌려 호출부가 단계(stage)별로 502 를 만든다.
   async function chat(
-    schema: unknown,
+    schema: Record<string, unknown>,
     system: string,
     user: string,
     tag: string,
-  ): Promise<{ json?: unknown; error?: { status: number; detail: string } }> {
-    const startedAt = Date.now();
-    let resp = await postChat(schema, system, user, params);
-    for (let attempt = 0; attempt < 2 && !resp.ok && resp.status === 400; attempt++) {
-      const err = await resp.text();
-      const lower = err.toLowerCase();
-      const dropped = Object.keys(params).filter((p) => lower.includes(p.toLowerCase()));
-      if (dropped.length === 0) return { error: { status: resp.status, detail: err.slice(0, 500) } };
-      for (const p of dropped) delete params[p];
-      console.warn(`[${tag}] openai 400 dropping [${dropped.join(',')}]: ${err.slice(0, 300)}`);
-      resp = await postChat(schema, system, user, params);
+  ): Promise<{ json?: unknown; error?: unknown }> {
+    try {
+      return { json: await claudeJson({ tag, system, content: user, schema }) };
+    } catch (e) {
+      return { error: e };
     }
-    if (!resp.ok) {
-      const err = await resp.text();
-      return { error: { status: resp.status, detail: err.slice(0, 500) } };
-    }
-    const j = await resp.json();
-    const u = (j as { usage?: Record<string, unknown> })?.usage ?? {};
-    console.log(`usage[${tag}] ` + JSON.stringify({
-      ms: Date.now() - startedAt,
-      completion: u.completion_tokens,
-      reasoning:
-        (u.completion_tokens_details as { reasoning_tokens?: number } | undefined)
-          ?.reasoning_tokens,
-    }));
-    return { json: j };
   }
 
-  function parseContent(j: unknown): unknown {
-    const content =
-      (j as { choices?: Array<{ message?: { content?: string } }> })
-        ?.choices?.[0]?.message?.content ?? '';
-    return JSON.parse(content);
-  }
-
-  const openaiFail = (stage: string, e: { status: number; detail: string }) => {
-    console.error(`openai error [${stage}]`, e.status, e.detail);
+  const llmFail = (stage: string, e: unknown) => {
+    console.error(`llm error [${stage}]`, e);
     return new Response(
-      JSON.stringify({ error: 'openai_failed', stage, status: e.status, detail: e.detail }),
-      { status: 502, headers: { 'content-type': 'application/json' } },
-    );
-  };
-  const openaiExc = (stage: string, e: unknown) => {
-    console.error(`openai exception [${stage}]`, e);
-    return new Response(
-      JSON.stringify({ error: 'openai_exception', stage, detail: String(e).slice(0, 300) }),
+      JSON.stringify({
+        error: 'llm_failed',
+        stage,
+        status: (e as { status?: number })?.status ?? null,
+        detail: String(e).slice(0, 300),
+      }),
       { status: 502, headers: { 'content-type': 'application/json' } },
     );
   };
@@ -439,21 +364,17 @@ Deno.serve(async (req) => {
 - caveats: 알레르기·재료 반영 내역 한 줄씩. weekly_summary: 이번 주 컨셉 반말 1~2문장.`;
 
   const s1 = await chat(SKELETON_SCHEMA, skeletonSystem, skeletonUser, 'skeleton');
-  if (s1.error) return openaiFail('skeleton', s1.error);
-  let skeleton: { weekly_summary?: string; caveats?: unknown; days?: unknown[] };
-  try {
-    skeleton = parseContent(s1.json) as typeof skeleton;
-  } catch (e) {
-    return openaiExc('skeleton', e);
-  }
+  if (s1.error) return llmFail('skeleton', s1.error);
+  const skeleton = s1.json as { weekly_summary?: string; caveats?: unknown; days?: unknown[] };
+  // 스키마가 개수를 강제하지 못하므로 7일 초과분은 자른다.
   const skelDays = Array.isArray(skeleton?.days)
     ? (skeleton.days as Array<{
       date_offset?: number;
       label?: string;
       meals?: Array<{ slot?: string; name?: string; target_kcal?: number }>;
-    }>)
+    }>).slice(0, 7)
     : [];
-  if (skelDays.length === 0) return openaiExc('skeleton', new Error('no days in skeleton'));
+  if (skelDays.length === 0) return llmFail('skeleton', new Error('no days in skeleton'));
 
   // ---- 2단계: 요일별 상세 레시피를 병렬 생성 (각 호출 출력이 작아 150s 안에 끝남) ----
   const daySystem = `당신은 Foodiet 앱의 영양 코치 "푸디"예요. 한국어 반말.
@@ -485,15 +406,11 @@ ${planned}`;
   const days: unknown[] = [];
   for (let i = 0; i < dayResults.length; i++) {
     const r = dayResults[i];
-    if (r.error) return openaiFail(`day${skelDays[i]?.date_offset}`, r.error);
-    try {
-      days.push(parseContent(r.json));
-    } catch (e) {
-      return openaiExc(`day${skelDays[i]?.date_offset}`, e);
-    }
+    if (r.error) return llmFail(`day${skelDays[i]?.date_offset}`, r.error);
+    days.push(r.json);
   }
   console.log('mealplan_done ' + JSON.stringify({
-    model: OPENAI_MODEL,
+    model: CLAUDE_MODEL,
     stage2_ms: Date.now() - startedAll,
     days: days.length,
   }));
@@ -520,7 +437,7 @@ ${planned}`;
       daily_kcal_target: target,
       activity_level: activity,
       plan_json: planJson,
-      source_model: OPENAI_MODEL,
+      source_model: CLAUDE_MODEL,
       status: 'done',
     }, { onConflict: 'user_id,week_start_date' })
     .select('id, week_start_date, plan_json, source_model, created_at')
