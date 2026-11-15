@@ -120,7 +120,6 @@
 
 **Files:**
 - Create: `supabase/functions/meal-suggest/index.ts`, `supabase/functions/meal-suggest/schema.ts`
-- Modify: `supabase/config.toml` (기존 함수 항목 패턴대로 `[functions.meal-suggest]`, verify_jwt 는 home-coach 와 동일)
 - Create: `supabase/functions/_tests/suggest_probe.ts`
 
 **Interfaces:**
@@ -158,7 +157,6 @@
 
 **Files:**
 - Create: `supabase/functions/weekly-checkin/index.ts`, `supabase/functions/weekly-checkin/schema.ts`
-- Modify: `supabase/config.toml`
 - Create: `lib/providers/weekly_checkin_provider.dart`, `lib/features/checkin/weekly_checkin_page.dart`, `lib/features/checkin/checkin_share_card.dart`
 - Test: `test/weekly_checkin_test.dart`, `supabase/functions/_tests/checkin_probe.ts`
 

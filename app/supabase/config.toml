@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.home-coach]
 verify_jwt = false
+
+[functions.meal-suggest]
+verify_jwt = false
+
+[functions.weekly-checkin]
+verify_jwt = false
