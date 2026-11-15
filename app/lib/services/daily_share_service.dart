@@ -72,7 +72,7 @@ class DailyShareService {
 
       // signed URL map (병렬 페칭).
       final photoUrls = <String, String>{};
-      await Future.wait(doneEntries.map((e) async {
+      await Future.wait(doneEntries.where((e) => e.hasPhoto).map((e) async {
         try {
           final url = await _ref.read(signedUrlProvider(e.imagePath).future);
           photoUrls[e.imagePath] = url;

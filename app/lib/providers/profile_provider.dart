@@ -32,6 +32,8 @@ class AppProfile {
     this.birthDate,
     this.sex,
     this.nicknameChangedAt,
+    this.goalMode = 'lose',
+    this.targetWeightBasisKg,
   });
 
   final String userId;
@@ -50,6 +52,15 @@ class AppProfile {
   final Sex? sex;
   /// 마지막으로 닉네임을 수동 변경한 시각. 30일 cooldown 안내에 사용.
   final DateTime? nicknameChangedAt;
+
+  /// 'lose'(감량) | 'maintain'(유지) | 'gain'(증량). 0017 전 DB 면 기본 'lose'.
+  final String goalMode;
+
+  /// 현재 daily_kcal_target 을 계산할 때 기준으로 쓴 체중. 추세 체중과 2kg+
+  /// 벌어지면 목표 재계산을 제안한다.
+  final double? targetWeightBasisKg;
+
+  bool get isMaintainMode => goalMode == 'maintain';
 
   /// 닉네임을 다음에 변경 가능한 시각 (30일 cooldown 종료 시점).
   /// 한 번도 변경한 적 없으면 null.
@@ -91,6 +102,12 @@ class AppProfile {
         nicknameChangedAt: j['nickname_changed_at'] == null
             ? null
             : DateTime.tryParse(j['nickname_changed_at'] as String)?.toLocal(),
+        goalMode: switch (j['goal_mode'] as String?) {
+          'maintain' => 'maintain',
+          'gain' => 'gain',
+          _ => 'lose',
+        },
+        targetWeightBasisKg: (j['target_weight_basis_kg'] as num?)?.toDouble(),
       );
 
   static Sex? _parseSex(String? v) {
@@ -117,7 +134,8 @@ final profileProvider = FutureProvider<AppProfile?>((ref) async {
         'user_id, nickname, locale, unit_energy, unit_mass, '
         'daily_kcal_target, goal_weight_kg, height_cm, weight_kg, '
         'goal_deadline, activity_level, diet_restrictions, '
-        'birth_date, sex, nickname_changed_at',
+        'birth_date, sex, nickname_changed_at, goal_mode, '
+        'target_weight_basis_kg',
       )
       .eq('user_id', user.id)
       .maybeSingle();

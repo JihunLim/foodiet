@@ -23,6 +23,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/community_provider.dart';
 import '../../providers/profile_provider.dart';
 import '../../providers/supabase_provider.dart';
+import '../../services/content_notifications.dart';
 import '../../services/daily_share_service.dart';
 import '../../services/meal_reminder_service.dart';
 import '../../supabase/client.dart';
@@ -676,17 +677,40 @@ class _PrivacyDataSheetState extends ConsumerState<_PrivacyDataSheet> {
           .select(
             'id, captured_at, image_path, status, shared_with_count, '
             'title, note, meal_slot, eating_type, kcal_total, macros, '
-            'confidence',
+            'confidence, source, feedback',
           )
           .eq('user_id', user.id)
           .order('captured_at', ascending: false)
           .limit(1000);
+
+      // 0017 이후 테이블 — 미적용 DB 에서도 내보내기가 깨지지 않도록 개별 best-effort.
+      Future<Object?> extra(String table, String orderBy) async {
+        try {
+          return await client
+              .from(table)
+              .select()
+              .eq('user_id', user.id)
+              .order(orderBy, ascending: false)
+              .limit(1000);
+        } catch (_) {
+          return null;
+        }
+      }
+
+      final weeklyCheckins = await extra('weekly_checkins', 'week_start');
+      final medicationPlan = await extra('medication_plans', 'updated_at');
+      final medicationLogs = await extra('medication_logs', 'taken_at');
+      final weightLogs = await extra('weight_logs', 'logged_at');
 
       final payload = {
         'exported_at': DateTime.now().toUtc().toIso8601String(),
         'user_id': user.id,
         'profile': profileRow,
         'entries': entries,
+        'weight_logs': weightLogs,
+        'weekly_checkins': weeklyCheckins,
+        'medication_plan': medicationPlan,
+        'medication_logs': medicationLogs,
       };
       final json = const JsonEncoder.withIndent('  ').convert(payload);
       await Clipboard.setData(ClipboardData(text: json));
@@ -771,10 +795,24 @@ class _PrivacyDataSheetState extends ConsumerState<_PrivacyDataSheet> {
         // (Storage RLS 가 본인 폴더만 허용하기 때문에 일부 실패해도 보안상 안전.)
       }
 
+      // 0017 이후 사용자 테이블 — auth 계정은 남으므로 FK cascade 에 기대지 않고
+      // 명시적으로 지운다. 미적용 DB 에서도 계정 삭제가 진행되도록 개별 best-effort.
+      for (final table in const [
+        'weekly_checkins',
+        'lesson_reads',
+        'medication_logs',
+        'medication_plans',
+        'app_events',
+      ]) {
+        try {
+          await client.from(table).delete().eq('user_id', user.id);
+        } catch (_) {/* ignore */}
+      }
       await client.from('entries').delete().eq('user_id', user.id);
       await client.from('profiles').delete().eq('user_id', user.id);
       await client.auth.signOut();
       await MealReminderService.instance.cancelAll();
+      await ContentNotifications.instance.cancelAll();
 
       if (!mounted) return;
       // 시트 닫고 sign-in 으로.

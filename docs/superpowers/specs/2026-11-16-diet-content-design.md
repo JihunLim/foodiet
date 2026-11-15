@@ -116,3 +116,11 @@ entries.feedback jsonb; entries_source_check 에 meal_plan·suggestion 추가; p
 
 ## 빌더에게 남긴 것
 화면 세부 레이아웃·카피(톤 규칙 준수), 레슨 본문 문장, 차트 추세선 스타일, 위젯 내부 구조.
+
+## 빌더 체크 후 결정 (오케스트레이터 판단)
+
+- `goal_mode` 에 `'gain'` 추가. 서버는 `goal_mode='lose'` 인데 목표 체중 > 현재 체중이면 실효 모드를 'gain' 으로 본다. 정체기 카드는 lose 모드에서만.
+- GLP-1 정보의 LLM 전달: `medication_plans.coach_context`(기본 true). 설정 시트에서 "푸디 조언에 GLP-1 사용 여부만 반영" 체크박스로 고지·선택. 투약 기록·용량은 LLM 에 보내지 않는다.
+- 계정 삭제는 서버 함수 없이 클라이언트가 새 테이블을 명시 삭제(best-effort). `app_events` 에 본인 delete 정책 추가.
+- **출시 전 소유자 몫:** 개인정보처리방침 개정(투약 기록·식이 피드백·app_events 식별 이벤트), 앱스토어 개인정보 라벨, 레슨 원고 검토.
+- 레슨 출처: 세션 리서치 결과(스크래치패드 all.json)에 실제로 열람된 URL 만.

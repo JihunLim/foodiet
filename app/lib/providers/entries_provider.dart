@@ -36,6 +36,8 @@ class Entry {
     this.kcalTotal,
     this.macros,
     this.confidence,
+    this.source,
+    this.feedback,
   });
 
   final String id;
@@ -51,6 +53,15 @@ class Entry {
   final int? kcalTotal;
   final Map<String, dynamic>? macros;
   final double? confidence;
+
+  /// camera | gallery | favorite | meal_plan | suggestion.
+  final String? source;
+
+  /// analyze-entry 가 만든 한 끼 피드백. 구버전 기록/생성 실패면 null.
+  final MealFeedback? feedback;
+
+  /// 사진 없는 기록(식단·추천 1탭 기록)은 image_path 가 '' 다.
+  bool get hasPhoto => imagePath.isNotEmpty;
 
   /// 1인분 환산 kcal. [sharedWithCount] 로 나눈 값. 합계/표시에 이걸 사용.
   int? get kcalPerPerson {
@@ -76,7 +87,117 @@ class Entry {
             ? null
             : Map<String, dynamic>.from(j['macros'] as Map),
         confidence: (j['confidence'] as num?)?.toDouble(),
+        source: j['source'] as String?,
+        feedback: MealFeedback.fromJson(j['feedback']),
       );
+}
+
+/// 1탭 보정 질문의 선택지. factor 는 서버가 [0.2, 1.3] 로 clamp 해서 내려준다.
+class CheckOption {
+  const CheckOption({
+    required this.label,
+    required this.kcalFactor,
+    required this.sodiumFactor,
+  });
+  final String label;
+  final double kcalFactor;
+  final double sodiumFactor;
+
+  Map<String, dynamic> toJson() => {
+        'label': label,
+        'kcal_factor': kcalFactor,
+        'sodium_factor': sodiumFactor,
+      };
+}
+
+/// "밥은 얼마나 먹었어?" 같은 1탭 보정 질문.
+class FeedbackCheck {
+  const FeedbackCheck({
+    required this.kind,
+    required this.question,
+    required this.options,
+    this.answered,
+  });
+  final String kind; // portion | rice | soup | sauce
+  final String question;
+  final List<CheckOption> options;
+
+  /// 사용자가 고른 선택지 label. null = 아직 답하지 않음.
+  final String? answered;
+
+  Map<String, dynamic> toJson() => {
+        'kind': kind,
+        'question': question,
+        'options': options.map((o) => o.toJson()).toList(),
+        if (answered != null) 'answered': answered,
+      };
+}
+
+/// 한 끼 피드백 — 잘한 점 1개 + 다음에 더하거나 바꿔볼 것 1개.
+class MealFeedback {
+  const MealFeedback({
+    required this.headline,
+    required this.good,
+    required this.next,
+    this.check,
+  });
+  final String headline;
+  final String good;
+  final String next;
+  final FeedbackCheck? check;
+
+  Map<String, dynamic> toJson() => {
+        'headline': headline,
+        'good': good,
+        'next': next,
+        'check': check?.toJson() ??
+            {'kind': 'none', 'question': '', 'options': const []},
+      };
+
+  /// 형태가 어긋나면 예외 대신 null (구버전·부분 데이터 방어).
+  static MealFeedback? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    final headline = raw['headline'];
+    final good = raw['good'];
+    final next = raw['next'];
+    if (headline is! String || good is! String || next is! String) return null;
+    return MealFeedback(
+      headline: headline,
+      good: good,
+      next: next,
+      check: _parseCheck(raw['check']),
+    );
+  }
+
+  static FeedbackCheck? _parseCheck(Object? raw) {
+    if (raw is! Map) return null;
+    final kind = raw['kind'];
+    final question = raw['question'];
+    final opts = raw['options'];
+    if (kind is! String || kind == 'none') return null;
+    if (question is! String || question.isEmpty || opts is! List) return null;
+    final options = <CheckOption>[];
+    for (final o in opts) {
+      if (o is! Map) continue;
+      final label = o['label'];
+      final kf = o['kcal_factor'];
+      final sf = o['sodium_factor'];
+      if (label is! String || kf is! num) continue;
+      options.add(CheckOption(
+        label: label,
+        kcalFactor: kf.toDouble(),
+        sodiumFactor: sf is num ? sf.toDouble() : 1.0,
+      ));
+    }
+    if (options.length < 2) return null;
+    final answered = raw['answered'];
+    return FeedbackCheck(
+      kind: kind,
+      question: question,
+      options: options,
+      answered: answered is String ? answered : null,
+    );
+  }
 }
 
 class EntryItem {
@@ -113,7 +234,8 @@ class EntryItem {
 
 const _entrySelect =
     'id, user_id, captured_at, image_path, status, shared_with_count, '
-    'title, note, meal_slot, eating_type, kcal_total, macros, confidence';
+    'title, note, meal_slot, eating_type, kcal_total, macros, confidence, '
+    'source, feedback';
 
 /// 오늘(로컬 자정~현재) 타임라인. Home 이 구독.
 final AutoDisposeFutureProvider<List<Entry>> todayEntriesProvider =

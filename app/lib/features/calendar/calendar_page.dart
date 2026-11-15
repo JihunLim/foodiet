@@ -17,6 +17,7 @@ import 'package:intl/intl.dart';
 import '../../providers/entries_provider.dart';
 import '../../services/daily_share_service.dart';
 import '../../theme/foodiet_tokens.dart';
+import '../../widgets/no_photo_tile.dart';
 import '../../widgets/signed_network_image.dart';
 
 class CalendarPage extends ConsumerWidget {
@@ -287,11 +288,13 @@ class _EntryRow extends StatelessWidget {
                     width: 64,
                     height: 64,
                     // 64pt × 3x DPR = 192 물리 픽셀.
-                    child: SignedNetworkImage(
-                      path: entry.imagePath,
-                      cacheWidth: 192,
-                      cacheHeight: 192,
-                    ),
+                    child: entry.hasPhoto
+                        ? SignedNetworkImage(
+                            path: entry.imagePath,
+                            cacheWidth: 192,
+                            cacheHeight: 192,
+                          )
+                        : NoPhotoTile(size: 64, mealSlot: entry.mealSlot),
                   ),
                 ),
                 const SizedBox(width: FoodietShape.sp12),

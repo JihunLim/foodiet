@@ -24,6 +24,7 @@ import '../../providers/profile_provider.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/ai_coach_card.dart';
 import '../../widgets/foodie_bubble.dart';
+import '../../widgets/no_photo_tile.dart';
 import '../../widgets/signed_network_image.dart';
 import 'quick_record_chips.dart';
 
@@ -424,11 +425,13 @@ class _TimelineRow extends StatelessWidget {
                     height: 72,
                     // 72pt × 3x DPR = 216 물리 픽셀. 디코드 크기 제한으로
                     // 메모리 압력을 낮춘다 — ImageCache 덮어쓰기 방지에도 도움.
-                    child: SignedNetworkImage(
-                      path: entry.imagePath,
-                      cacheWidth: 216,
-                      cacheHeight: 216,
-                    ),
+                    child: entry.hasPhoto
+                        ? SignedNetworkImage(
+                            path: entry.imagePath,
+                            cacheWidth: 216,
+                            cacheHeight: 216,
+                          )
+                        : NoPhotoTile(size: 72, mealSlot: entry.mealSlot),
                   ),
                 ),
                 const SizedBox(width: FoodietShape.sp12),

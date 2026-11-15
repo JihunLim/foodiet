@@ -16,6 +16,7 @@ import '../../providers/favorites_provider.dart';
 import '../../providers/supabase_provider.dart';
 import '../../supabase/client.dart';
 import '../../theme/foodiet_tokens.dart';
+import '../../widgets/no_photo_tile.dart';
 import '../../widgets/signed_network_image.dart';
 
 class EntryDetailPage extends ConsumerWidget {
@@ -159,6 +160,13 @@ class _Body extends ConsumerWidget {
         // 사진 — 전체가 보이도록 BoxFit.contain 으로 표시하고 탭하면
         // 풀스크린 확대 뷰어를 연다. 배경은 cream100 으로 letterbox.
         // 네트워크/CDN 일시 실패 시 SignedNetworkImage 가 새 URL 로 자동 재시도.
+        if (!entry.hasPhoto)
+          NoPhotoTile(
+            size: 160,
+            mealSlot: entry.mealSlot,
+            radius: BorderRadius.circular(FoodietShape.radiusLg),
+          )
+        else
         GestureDetector(
           onTap: () => _openFullscreenPhoto(
               context, entry.imagePath, 'entry-photo-${entry.id}'),
@@ -1032,8 +1040,8 @@ Future<void> _confirmAndDelete(
     // 1) entry_items 는 ON DELETE CASCADE 로 자동 삭제.
     await client.from('entries').delete().eq('id', entry.id);
 
-    // 2) Storage 파일 제거 (best-effort).
-    try {
+    // 2) Storage 파일 제거 (best-effort). 사진 없는 기록은 건너뛴다.
+    if (entry.hasPhoto) try {
       await client.storage
           .from(FoodietSupabase.foodPhotosBucket)
           .remove([entry.imagePath]);

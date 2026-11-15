@@ -126,6 +126,9 @@ class FavoritesService {
     final user = _sb.auth.currentUser;
     if (user == null) throw FavoriteException('로그인이 필요해');
 
+    if (!entry.hasPhoto) {
+      throw FavoriteException('사진 없는 기록은 즐겨찾기할 수 없어');
+    }
     final name = (entry.title ?? '').trim();
     if (name.isEmpty) {
       throw FavoriteException('아직 이름이 없는 기록은 즐겨찾기할 수 없어');
