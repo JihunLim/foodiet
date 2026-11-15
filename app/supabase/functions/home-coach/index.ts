@@ -1,7 +1,13 @@
 // home-coach — 홈 화면 AI 가이드 카드용 식단 코칭.
 //
 // 입력: 현재 로그인 사용자의 오늘자 entries(완료분) + 프로필 + 현재 시각(로컬).
+//       + 맥락(0017): 지난 7일(오늘 제외) 요약, 최근 14일 주간 체크인 실험,
+//         목표 모드(goal_mode → 실효 lose/maintain/gain), GLP-1 사용 여부
+//         (medication_plans.active && coach_context — 투약 기록·용량은 보내지 않음),
+//         이번 주 식단의 오늘 끼니 이름.
+//       맥락 조회는 각각 실패해도 무시한다 (0017 전 DB 에서도 기존처럼 동작).
 // 출력: { emoji, headline, review, next_tip, focus } 구조화 JSON 한 건.
+// 순수 로직(요약·프롬프트·시그니처)은 ./context.ts.
 //
 // 트리거: Flutter 클라이언트가 홈 화면에 진입했을 때 invoke(). 완료된 엔트리 수
 //         또는 kcal 합계가 바뀔 때마다 클라이언트가 재호출.
@@ -17,51 +23,30 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { claudeJson } from '../_shared/claude.ts';
+import {
+  buildSignature,
+  buildSystemPrompt,
+  buildUserPrompt,
+  type CoachResult,
+  effectiveMode,
+  kcalFloor,
+  mondayKey,
+  RESPONSE_SCHEMA,
+  sanitizeResult,
+  shiftDateKey,
+  summarizeWeek,
+  todayKeyFor,
+  todayPlanMeals,
+  type WeekRow,
+  weekdayIndex,
+  weekSummaryKey,
+} from './context.ts';
 
 const admin = createClient(
   Deno.env.get('SUPABASE_URL')!,
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   { auth: { persistSession: false } },
 );
-
-// §7.9 — 금지어 (부정 표현). headline 에서 하나라도 등장하면 무난한 fallback 으로 대체.
-const BANNED = ['실패', '어겼다', '망쳤다', '해주세요'];
-
-const RESPONSE_SCHEMA = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['emoji', 'headline', 'review', 'next_tip', 'focus'],
-  properties: {
-    emoji: {
-      type: 'string',
-      description: '오늘의 분위기 이모지 1개.',
-    },
-    headline: {
-      type: 'string',
-      description: '15자 내외 반말, 긍정/격려. 20자 초과 금지.',
-    },
-    review: {
-      type: 'string',
-      description: '지금까지 먹은 음식에 대한 2~3문장 긍정 코멘트.',
-    },
-    next_tip: {
-      type: 'string',
-      description: '현재 시각 기준 다음 식사/간식 1~2문장 구체 가이드.',
-    },
-    focus: {
-      type: 'string',
-      description: '지금 신경쓰면 좋을 영양소 1~2단어 (예: 단백질, 식이섬유).',
-    },
-  },
-} as const;
-
-type CoachResult = {
-  emoji: string;
-  headline: string;
-  review: string;
-  next_tip: string;
-  focus: string;
-};
 
 // ── 타임존 유틸 ───────────────────────────────────────────────────────
 // 클라이언트가 전달한 `tz_offset_min` 을 그대로 사용. 유효하지 않으면
@@ -128,6 +113,25 @@ async function getUserId(
   return { userId: data.user.id };
 }
 
+type ProfileRow = {
+  nickname: string | null;
+  daily_kcal_target: number | null;
+  goal_weight_kg: number | null;
+  diet_restrictions: string[] | null;
+  activity_level: number | null;
+  weight_kg: number | null;
+  sex: string | null;
+};
+
+type TodayEntryRow = {
+  title: string | null;
+  meal_slot: string | null;
+  kcal_total: number | null;
+  macros: Record<string, number> | null;
+  captured_at: string | null;
+  shared_with_count: number | null;
+};
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response('method not allowed', { status: 405 });
@@ -151,8 +155,9 @@ Deno.serve(async (req) => {
     // body 없거나 파싱 실패 → 기본값 그대로.
   }
 
-  // 프로필
-  const { data: profile } = await admin
+  // 프로필 (select 문자열을 이어 붙이면 supabase-js 가 행 타입을 추론하지 못하므로
+  // 명시 타입으로 받는다.)
+  const { data: profileData } = await admin
     .from('profiles')
     .select(
       'nickname, locale, daily_kcal_target, goal_weight_kg, goal_deadline, ' +
@@ -160,9 +165,10 @@ Deno.serve(async (req) => {
     )
     .eq('user_id', userId)
     .maybeSingle();
+  const profile = profileData as unknown as ProfileRow | null;
 
   // 오늘 완료된 엔트리
-  const { data: entries } = await admin
+  const { data: entriesData } = await admin
     .from('entries')
     .select(
       'title, meal_slot, eating_type, kcal_total, macros, ' +
@@ -172,6 +178,7 @@ Deno.serve(async (req) => {
     .eq('status', 'done')
     .gte('captured_at', startOfTodayUtc(tzOffsetMin))
     .order('captured_at', { ascending: true });
+  const entries = entriesData as unknown as TodayEntryRow[] | null;
 
   // 1인분 환산 합산
   let kcalConsumed = 0;
@@ -205,7 +212,12 @@ Deno.serve(async (req) => {
   }
 
   const nickname = (profile?.nickname as string) ?? '유저';
-  const target = (profile?.daily_kcal_target as number) ?? 1800;
+  // 프로필 편집은 800 kcal 까지 허용하므로, 코칭 기준 목표는 안전 하한(남 1500 / 여·미입력
+  // 1200) 아래로 내려가지 않게 올린다 — 하한 미만 목표를 "남은 kcal" 로 안내하지 않기 위해.
+  const target = Math.max(
+    kcalFloor(profile?.sex),
+    (profile?.daily_kcal_target as number) ?? 1800,
+  );
   const remaining = Math.max(0, target - kcalConsumed);
   const local = nowLocal(tzOffsetMin);
   const nowLabel =
@@ -254,16 +266,29 @@ Deno.serve(async (req) => {
     );
   }
 
+  // ── 맥락 (0017) ─────────────────────────────────────────────────────
+  // 각 조회는 독립적으로 실패를 삼킨다 — 0017 전 DB(컬럼·테이블 없음)나 일시 오류여도
+  // 기존 오늘 데이터만으로 코칭이 나가야 한다.
+  const ctx = await loadCoachContext(userId, tzOffsetMin, profile);
+
   // ── 캐시 + 레이트리밋 ────────────────────────────────────────────────
   // coach_messages 에 `scope='daily'`, `body_json.kind='home_coach'` 로 저장.
-  // 같은 시그니처(= done 엔트리 수·kcal 합) 면 캐시 재사용, 하루 5회 초과 시에도
-  // 최신 캐시를 그대로 돌려주어 LLM 비용을 차단.
+  // 같은 시그니처(= done 엔트리 수·kcal 합 + 날짜·7일 요약·실험·모드·GLP-1·오늘 식단 수)
+  // 면 캐시 재사용, 하루 5회 초과 시에도 최신 캐시를 그대로 돌려주어 LLM 비용을 차단.
   //
   // 마지막(5번째) 호출은 로컬 18시 이후에만 허용 — 저녁 식사 타이밍에 맞춘
   // 업데이트를 보장하기 위해 슬롯 하나를 아껴둔다. 사용자 타임존이 파악 안 되면
   // 한국(KST) 기준으로 폴백.
-  const signature = `d:${eaten.length}|k:${kcalConsumed}|c:${carb.toFixed(0)}` +
-    `|p:${protein.toFixed(0)}|f:${fat.toFixed(0)}`;
+  const signature = buildSignature({
+    base: `d:${eaten.length}|k:${kcalConsumed}|c:${carb.toFixed(0)}` +
+      `|p:${protein.toFixed(0)}|f:${fat.toFixed(0)}`,
+    dayKey: ctx.todayKey,
+    weekKey: weekSummaryKey(ctx.week),
+    experiment: ctx.experiment,
+    mode: ctx.mode,
+    glp1: ctx.glp1,
+    planCount: ctx.planMeals.length,
+  });
   const DAILY_LIMIT = 5;
   const LAST_SLOT_UNLOCK_HOUR = 18;
   const localHour = local.getUTCHours(); // local 은 이미 offset shift 된 Date.
@@ -313,58 +338,31 @@ Deno.serve(async (req) => {
     });
   }
 
-  const systemPrompt = `당신은 Foodiet 앱의 AI 식단 코치 "푸디"입니다.
-한국어 반말, 친근하고 긍정적인 톤으로 사용자의 다이어트를 응원하세요.
-
-반드시 지킬 규칙:
-- "실패", "어겼다", "망쳤다", "해주세요" 등 부정/사무적인 어휘는 금지.
-- 의료·치료 조언 금지. 일반적인 영양 균형 가이드만.
-- 현재 시각(사용자 로컬)을 고려해 다음 가이드를 제안:
-  · 아침(06~10): 단백질+탄수 균형, 커피는 식후로.
-  · 점심 전(10~13): 점심으로 채소+단백질 추천.
-  · 오후(14~17): 당 과다 피하기, 간식이면 견과·과일.
-  · 저녁(17~20): 지방 낮고 식이섬유 풍부하게.
-  · 야간(21~): 가벼운 수분·단백질 위주, 탄수 자제.
-- 응답은 JSON 스키마에만 엄격히 맞춰주세요.
-- headline 은 20자 이내. 이모지는 emoji 필드에만 넣고 본문에는 금지.`;
-
-  const userPrompt = `[프로필]
-닉네임: ${nickname}
-일일 목표: ${target} kcal
-목표 체중: ${profile?.goal_weight_kg ?? '미설정'} kg
-활동 수준(1~5): ${profile?.activity_level ?? 3}
-식단 제약: ${
-    Array.isArray(profile?.diet_restrictions) && profile!.diet_restrictions.length
-      ? (profile!.diet_restrictions as string[]).join(', ')
-      : '없음'
-  }
-
-[현재 시각]
-${nowLabel} (사용자 로컬)
-
-[오늘 섭취 현황]
-먹은 끼니 ${eaten.length}건:
-${
-    eaten.length === 0
-      ? '  (아직 기록 없음)'
-      : eaten
-          .map(
-            (e) =>
-              `  - ${e.time} · ${e.slot} · ${e.title} (${e.kcal} kcal)`,
-          )
-          .join('\n')
-  }
-
-합계: ${kcalConsumed} / ${target} kcal (남은 ${remaining} kcal)
-탄수 ${carb.toFixed(0)}g · 단백 ${protein.toFixed(0)}g · 지방 ${fat.toFixed(0)}g
-나트륨 ${Math.round(sodium)}mg · 당 ${sugar.toFixed(0)}g
-
-이 데이터를 바탕으로 JSON 으로 응답하세요:
-- emoji: 오늘 분위기 이모지 1개
-- headline: 15~20자 반말 요약 한 줄
-- review: 지금까지 섭취에 대한 2~3문장 긍정 코멘트 (수치 언급 OK)
-- next_tip: 현재 시각에 맞춰 다음 식사/간식 1~2문장 구체 가이드
-- focus: 지금 신경쓰면 좋을 영양소 1~2단어`;
+  const systemPrompt = buildSystemPrompt(ctx.floor);
+  const userPrompt = buildUserPrompt({
+    nickname,
+    target,
+    floor: ctx.floor,
+    goalWeightKg: profile?.goal_weight_kg,
+    activityLevel: profile?.activity_level,
+    dietRestrictions: Array.isArray(profile?.diet_restrictions)
+      ? profile!.diet_restrictions
+      : [],
+    nowLabel,
+    eaten,
+    kcalConsumed,
+    remaining,
+    carb,
+    protein,
+    fat,
+    sodium,
+    sugar,
+    week: ctx.week,
+    experiment: ctx.experiment,
+    mode: ctx.mode,
+    glp1: ctx.glp1,
+    planMeals: ctx.planMeals,
+  });
 
   let parsed: CoachResult;
   try {
@@ -382,10 +380,8 @@ ${
     );
   }
 
-  // §7.9 headline 사후 필터. 부정 단어 포함 시 중립 문구로 대체.
-  if (BANNED.some((b) => parsed.headline?.includes(b))) {
-    parsed.headline = '오늘도 같이 가보자 💪';
-  }
+  // §7.9 사후 필터. 금지어가 들어간 필드는 중립 문구로 대체.
+  parsed = sanitizeResult(parsed);
 
   // 캐시에 저장. body_json 은 response 에 signature/kind 메타를 덧붙인 형태.
   const cacheBody = {
@@ -405,6 +401,132 @@ ${
     headers: { 'content-type': 'application/json' },
   });
 });
+
+// ── 맥락 로딩 (0017) ─────────────────────────────────────────────────
+// 5개 조회를 병렬로. 어느 하나가 실패(테이블·컬럼 없음 포함)해도 기본값으로 진행.
+
+type LoadedContext = {
+  todayKey: string;
+  week: ReturnType<typeof summarizeWeek>;
+  experiment: string | null;
+  mode: ReturnType<typeof effectiveMode>;
+  glp1: boolean;
+  floor: number;
+  planMeals: ReturnType<typeof todayPlanMeals>;
+};
+
+async function loadCoachContext(
+  userId: string,
+  tzOffsetMin: number,
+  profile: ProfileRow | null,
+): Promise<LoadedContext> {
+  const todayKey = todayKeyFor(Date.now(), tzOffsetMin);
+  const todayStartMs = new Date(startOfTodayUtc(tzOffsetMin)).getTime();
+  const weekFromIso = new Date(todayStartMs - 7 * 86400000).toISOString();
+  const todayStartIso = new Date(todayStartMs).toISOString();
+
+  // 실패를 삼키고 data(또는 null)만 돌려준다.
+  const safe = async <T>(
+    label: string,
+    q: PromiseLike<{ data: T | null; error: unknown }>,
+  ): Promise<T | null> => {
+    try {
+      const { data, error } = await q;
+      if (error) {
+        console.error(`home-coach context ${label} failed`, error);
+        return null;
+      }
+      return data;
+    } catch (e) {
+      console.error(`home-coach context ${label} threw`, e);
+      return null;
+    }
+  };
+
+  const [weekRows, modeRow, medRow, checkinRows, planRow] = await Promise.all([
+    // 지난 7일(오늘 제외) 완료 기록.
+    safe<WeekRow[]>(
+      'week',
+      admin
+        .from('entries')
+        .select('captured_at, kcal_total, macros, shared_with_count, meal_slot')
+        .eq('user_id', userId)
+        .eq('status', 'done')
+        .gte('captured_at', weekFromIso)
+        .lt('captured_at', todayStartIso) as unknown as PromiseLike<
+          { data: WeekRow[] | null; error: unknown }
+        >,
+    ),
+    // goal_mode 는 0017 컬럼 — 기존 프로필 select 와 분리해 실패가 번지지 않게.
+    safe<{ goal_mode: string | null }>(
+      'goal_mode',
+      admin
+        .from('profiles')
+        .select('goal_mode')
+        .eq('user_id', userId)
+        .maybeSingle() as unknown as PromiseLike<
+          { data: { goal_mode: string | null } | null; error: unknown }
+        >,
+    ),
+    // GLP-1: 사용 여부만. 투약 기록·용량은 LLM 에 보내지 않는다.
+    safe<{ active: boolean | null; coach_context: boolean | null }>(
+      'medication',
+      admin
+        .from('medication_plans')
+        .select('active, coach_context')
+        .eq('user_id', userId)
+        .maybeSingle() as unknown as PromiseLike<
+          {
+            data: { active: boolean | null; coach_context: boolean | null } | null;
+            error: unknown;
+          }
+        >,
+    ),
+    // 최근 14일 안에 고른 주간 체크인 실험 (가장 최근 주).
+    safe<Array<{ chosen_experiment: string | null }>>(
+      'checkin',
+      admin
+        .from('weekly_checkins')
+        .select('chosen_experiment, week_start')
+        .eq('user_id', userId)
+        .not('chosen_experiment', 'is', null)
+        .gte('week_start', shiftDateKey(todayKey, -14))
+        .order('week_start', { ascending: false })
+        .limit(1) as unknown as PromiseLike<
+          { data: Array<{ chosen_experiment: string | null }> | null; error: unknown }
+        >,
+    ),
+    // 이번 주 식단 (week_start_date = 이번 주 월요일, 로컬).
+    safe<{ plan_json: unknown }>(
+      'meal_plan',
+      admin
+        .from('meal_plans')
+        .select('plan_json')
+        .eq('user_id', userId)
+        .eq('week_start_date', mondayKey(todayKey))
+        .eq('status', 'done')
+        .maybeSingle() as unknown as PromiseLike<
+          { data: { plan_json: unknown } | null; error: unknown }
+        >,
+    ),
+  ]);
+
+  const exp = checkinRows?.[0]?.chosen_experiment?.trim() ?? '';
+
+  return {
+    todayKey,
+    week: summarizeWeek(weekRows ?? [], tzOffsetMin, todayKey),
+    experiment: exp.length > 0 ? exp.slice(0, 120) : null,
+    mode: effectiveMode(
+      modeRow?.goal_mode,
+      profile?.goal_weight_kg,
+      profile?.weight_kg,
+    ),
+    glp1: medRow?.active === true && medRow?.coach_context !== false,
+    floor: kcalFloor(profile?.sex),
+    planMeals: todayPlanMeals(planRow?.plan_json, weekdayIndex(todayKey)),
+  };
+}
 
 // ── 안티-셰임 결정적 메시지 (LLM 대신 고정 문구) ───────────────────────
 // 금지어(실패/어겼다/망쳤다/해주세요) 없이 작성. 푸디 반말 톤.

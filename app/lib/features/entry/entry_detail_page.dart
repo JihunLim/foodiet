@@ -18,6 +18,7 @@ import '../../supabase/client.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/no_photo_tile.dart';
 import '../../widgets/signed_network_image.dart';
+import 'meal_feedback_card.dart';
 
 class EntryDetailPage extends ConsumerWidget {
   const EntryDetailPage({super.key, required this.entryId});
@@ -281,6 +282,12 @@ class _Body extends ConsumerWidget {
 
         // kcal 요약 카드
         _KcalCard(entry: entry),
+
+        // 한 끼 피드백 + 1탭 보정 (피드백 없는 구버전 기록은 생략)
+        if (entry.status == 'done' && entry.feedback != null) ...[
+          const SizedBox(height: FoodietShape.sp12),
+          MealFeedbackCard(key: ValueKey('fb-${entry.id}'), entry: entry),
+        ],
 
         const SizedBox(height: FoodietShape.sp20),
 
@@ -1041,12 +1048,14 @@ Future<void> _confirmAndDelete(
     await client.from('entries').delete().eq('id', entry.id);
 
     // 2) Storage 파일 제거 (best-effort). 사진 없는 기록은 건너뛴다.
-    if (entry.hasPhoto) try {
-      await client.storage
-          .from(FoodietSupabase.foodPhotosBucket)
-          .remove([entry.imagePath]);
-    } catch (_) {
-      // storage 삭제 실패해도 UI 는 계속 진행 — cron 청소에 맡긴다.
+    if (entry.hasPhoto) {
+      try {
+        await client.storage
+            .from(FoodietSupabase.foodPhotosBucket)
+            .remove([entry.imagePath]);
+      } catch (_) {
+        // storage 삭제 실패해도 UI 는 계속 진행 — cron 청소에 맡긴다.
+      }
     }
 
     ref.invalidate(todayEntriesProvider);

@@ -10,6 +10,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 // intl 이 TextDirection 을 재정의해 Flutter 의 TextDirection.ltr 을 가리므로 hide.
 import 'package:intl/intl.dart' hide TextDirection;
 
@@ -20,6 +21,7 @@ import '../../theme/foodiet_tokens.dart';
 import '../../widgets/native_ad_card.dart';
 import '../../widgets/science_citations_sheet.dart';
 import 'meal_plan_tab.dart';
+import 'pattern_card.dart';
 import 'weight_insight_page.dart';
 
 class InsightPage extends ConsumerWidget {
@@ -121,12 +123,16 @@ class _NutritionTab extends ConsumerWidget {
           children: [
             _WindowToggle(current: window),
             const SizedBox(height: FoodietShape.sp16),
-            if (s.recordDays == 0)
-              const _EmptyInsight()
-            else ...[
+            if (s.recordDays == 0) ...[
+              const _EmptyInsight(),
+              const SizedBox(height: FoodietShape.sp24),
+              const _LessonsLink(),
+            ] else ...[
               _HeroCard(summary: s),
               const SizedBox(height: FoodietShape.sp12),
               _CoachCard(summary: s),
+              const SizedBox(height: FoodietShape.sp12),
+              PatternCard(summary: s),
               // AdMob 네이티브 광고 #1 (인사이트 상단).
               const SizedBox(height: FoodietShape.sp12),
               const NativeAdCard(key: ValueKey('insight-ad-top')),
@@ -145,11 +151,61 @@ class _NutritionTab extends ConsumerWidget {
                 const SizedBox(height: FoodietShape.sp12),
                 _TopFoodsCard(summary: s),
               ],
-              // 산출 근거 / 의료 면책 — App Store guideline 1.4.1 대응.
               const SizedBox(height: FoodietShape.sp24),
+              const _LessonsLink(),
+              // 산출 근거 / 의료 면책 — App Store guideline 1.4.1 대응.
+              const SizedBox(height: FoodietShape.sp8),
               const ScienceCitationsLink(),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── 읽을거리 링크 (/lessons) ─────────────────────────────────────────────
+
+class _LessonsLink extends StatelessWidget {
+  const _LessonsLink();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: FoodietColors.cream50,
+      borderRadius: BorderRadius.circular(FoodietShape.radiusMd),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(FoodietShape.radiusMd),
+        onTap: () => context.push('/lessons'),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+              horizontal: FoodietShape.sp16, vertical: FoodietShape.sp12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(FoodietShape.radiusMd),
+            border: Border.all(color: FoodietColors.cream100),
+          ),
+          child: Row(
+            children: [
+              const Text('📚', style: TextStyle(fontSize: 20)),
+              const SizedBox(width: FoodietShape.sp12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('읽을거리',
+                        style: FoodietText.title
+                            .copyWith(color: FoodietColors.warm900)),
+                    const SizedBox(height: 2),
+                    Text('2분이면 읽는 식사 이야기',
+                        style: FoodietText.caption
+                            .copyWith(color: FoodietColors.warm500)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded,
+                  color: FoodietColors.warm500),
+            ],
+          ),
         ),
       ),
     );
@@ -475,6 +531,7 @@ class _CalorieChartCard extends StatelessWidget {
               _LegendItem(color: FoodietColors.leaf500, label: '목표 ±10%'),
               _LegendItem(color: FoodietColors.warning, label: '초과'),
               _LegendItem(color: FoodietColors.info, label: '부족'),
+              _LegendItem(color: FoodietColors.warm200, label: '기록 적은 날'),
             ],
           ),
         ],
@@ -541,7 +598,8 @@ class _CalorieBarPainter extends CustomPainter {
       if (d.consumedKcal > upper) {
         color = FoodietColors.warning;
       } else if (d.consumedKcal < lower) {
-        color = FoodietColors.info;
+        // 한 끼만 기록한 날은 "부족"이 아니라 판단 보류 — 중립색.
+        color = d.entryCount <= 1 ? FoodietColors.warm200 : FoodietColors.info;
       } else {
         color = FoodietColors.leaf500;
       }
@@ -639,10 +697,24 @@ class _GoalBreakdownCard extends StatelessWidget {
               ),
             ],
           ),
+          if (_undecidedDays(summary) > 0) ...[
+            const SizedBox(height: FoodietShape.sp8),
+            Text(
+                '한 끼만 기록한 날 ${_undecidedDays(summary)}일은 '
+                '부족으로 세지 않았어 📝',
+                style: FoodietText.caption
+                    .copyWith(color: FoodietColors.warm500)),
+          ],
         ],
       ),
     );
   }
+}
+
+/// 달성·초과·부족 어디에도 안 들어간 기록일 — 한 끼만 기록해 판단을 보류한 날.
+int _undecidedDays(InsightSummary s) {
+  final n = s.recordDays - s.onGoalDays - s.overDays - s.underDays;
+  return n < 0 ? 0 : n;
 }
 
 class _GoalBar extends StatelessWidget {
@@ -655,6 +727,7 @@ class _GoalBar extends StatelessWidget {
     final onFlex = summary.onGoalDays;
     final overFlex = summary.overDays;
     final underFlex = summary.underDays;
+    final undecidedFlex = _undecidedDays(summary);
     return ClipRRect(
       borderRadius: BorderRadius.circular(FoodietShape.radiusSm),
       child: SizedBox(
@@ -673,7 +746,11 @@ class _GoalBar extends StatelessWidget {
               Expanded(
                   flex: underFlex,
                   child: Container(color: FoodietColors.info)),
-            if (onFlex + overFlex + underFlex == 0)
+            if (undecidedFlex > 0)
+              Expanded(
+                  flex: undecidedFlex,
+                  child: Container(color: FoodietColors.warm200)),
+            if (onFlex + overFlex + underFlex + undecidedFlex == 0)
               Expanded(
                   flex: total,
                   child: Container(color: FoodietColors.cream100)),

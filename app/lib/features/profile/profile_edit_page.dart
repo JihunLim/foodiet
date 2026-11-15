@@ -45,6 +45,14 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
   DateTime? _goalDeadline;
   int? _activity; // 1~5
 
+  /// profiles.goal_mode — 'lose' | 'maintain' | 'gain'.
+  String _goalMode = 'lose';
+
+  /// 불러온 값. 유지 → 감량 쪽으로 되돌릴 때 기존 'gain' 을 보존하려고 기억.
+  String _origGoalMode = 'lose';
+
+  bool get _isMaintain => _goalMode == 'maintain';
+
   bool _initialized = false;
   bool _saving = false;
   String? _error;
@@ -81,6 +89,8 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
     _sex = p.sex;
     _goalDeadline = p.goalDeadline;
     _activity = p.activityLevel;
+    _goalMode = p.goalMode;
+    _origGoalMode = p.goalMode;
     _initialized = true;
   }
 
@@ -112,6 +122,13 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
     final k = int.tryParse(_kcal.text);
     if (k == null || k < 800 || k > 6000) return false;
     return true;
+  }
+
+  /// 감량/증량 타일 라벨용 — 목표 체중이 현재보다 무거우면 증량.
+  bool get _isGainDirection {
+    final w = double.tryParse(_weight.text);
+    final g = double.tryParse(_goalWeight.text);
+    return w != null && g != null && g > w;
   }
 
   bool get _canAutoCalc {
@@ -154,6 +171,16 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
     setState(() => _goalDeadline = null);
   }
 
+  void _setMaintain(bool maintain) {
+    final next = maintain
+        ? 'maintain'
+        : (_origGoalMode == 'maintain' ? 'lose' : _origGoalMode);
+    if (next == _goalMode) return;
+    setState(() => _goalMode = next);
+    // 모드가 바뀌면 권장 칼로리도 바로 다시 채워준다 (수정은 자유).
+    _autoCalcKcal();
+  }
+
   void _autoCalcKcal() {
     if (!_canAutoCalc) return;
     final now = DateTime.now();
@@ -164,8 +191,9 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
       heightCm: double.parse(_height.text),
       weightKg: double.parse(_weight.text),
       activityLevel: _activity!,
-      goalWeightKg: double.parse(_goalWeight.text),
-      goalDeadline: _goalDeadline,
+      // 유지 모드: 적자 0 → TDEE (하한 1200/1500 은 computeKcalTarget 이 적용).
+      goalWeightKg: _isMaintain ? null : double.parse(_goalWeight.text),
+      goalDeadline: _isMaintain ? null : _goalDeadline,
       now: now,
     ));
     setState(() {
@@ -215,6 +243,10 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
             'sex': _sex == null
                 ? null
                 : (_sex == Sex.male ? 'male' : 'female'),
+            'goal_mode': _goalMode,
+            // 지금 목표 kcal 의 기준 체중 — 체중 탭 "목표 다시 계산" 제안의 기준.
+            'target_weight_basis_kg':
+                (double.parse(_weight.text) * 10).round() / 10,
           })
           .eq('user_id', user.id)
           .timeout(const Duration(seconds: 15));
@@ -411,6 +443,37 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
 
                       const _SectionHeader('목표'),
                       const SizedBox(height: FoodietShape.sp8),
+                      const _Label('목표 모드'),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _SelectTile(
+                              selected: !_isMaintain,
+                              label: _isGainDirection ? '증량 모드' : '감량 모드',
+                              onTap: () => _setMaintain(false),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _SelectTile(
+                              selected: _isMaintain,
+                              label: '유지 모드',
+                              onTap: () => _setMaintain(true),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _isMaintain
+                            ? '지금 체중을 편하게 지키는 칼로리로 맞춰. '
+                                '목표 체중·기한은 계산에 쓰지 않아.'
+                            : '목표 체중과 기한으로 권장 칼로리를 계산해.',
+                        style: FoodietText.caption
+                            .copyWith(color: FoodietColors.warm500),
+                      ),
+                      const SizedBox(height: FoodietShape.sp16),
                       const _Label('목표 체중 (kg)'),
                       const SizedBox(height: 6),
                       TextField(
@@ -513,7 +576,8 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
                         ],
                       ),
                       const SizedBox(height: 6),
-                      _KcalHelperText(result: _lastAutoCalc),
+                      _KcalHelperText(
+                          result: _lastAutoCalc, maintainMode: _isMaintain),
 
                       if (_error != null) ...[
                         const SizedBox(height: FoodietShape.sp16),
@@ -577,8 +641,11 @@ class _AutoCalcButton extends StatelessWidget {
 }
 
 class _KcalHelperText extends StatelessWidget {
-  const _KcalHelperText({required this.result});
+  const _KcalHelperText({required this.result, this.maintainMode = false});
   final KcalTargetResult? result;
+
+  /// 유지 모드로 계산한 결과면 안내 문구를 바꾼다.
+  final bool maintainMode;
 
   @override
   Widget build(BuildContext context) {
@@ -604,13 +671,17 @@ class _KcalHelperText extends StatelessWidget {
             : '유지';
 
     final line1 = '유지(TDEE) ${r.tdee} kcal · $mode 추천 ${r.dailyKcalTarget} kcal';
-    final line2 = r.mode == KcalMode.maintain
+    final line2 = maintainMode
+        ? '유지 모드 — 적자 없이 지금 체중을 지키는 칼로리야.'
+        : r.mode == KcalMode.maintain
         ? '목표와 현재 체중이 거의 같아서 유지 권장.'
         : r.usedDeadline
             ? '기한 기반 적자 — 예상 속도 주 ${weekly.toStringAsFixed(2)} kg $direction'
             : '기한 없음 → 주 0.5kg ${r.mode == KcalMode.cut ? '감량' : '증량'} 가정';
 
-    final warn = r.clampedBySafety
+    final warn = r.clampedBySafety && maintainMode
+        ? '안전 하한(여 1200 / 남 1500)에 맞춰 조정했어.'
+        : r.clampedBySafety
         ? '기한이 짧거나 하한(여 1200 / 남 1500)에 걸려서 안전 속도로 조정됐어. '
             '목표 도달이 설정한 기한보다 늦어질 수 있어.'
         : null;

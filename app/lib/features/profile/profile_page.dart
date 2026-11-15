@@ -5,8 +5,10 @@
 /// Phase F (MVP 완성도 개선):
 ///   - "목표·기한" → `/profile/edit` (편집 화면).
 ///   - "PT 공유" → 초대 문구를 클립보드에 복사 (간이 공유).
-///   - "알림 설정" → 끼니 리마인더 (master + 아침/점심/저녁 별 ON·시각).
+///   - "알림 설정" → 끼니 리마인더 (master + 아침/점심/저녁 별 ON·시각)
+///       + 주간 체크인 알림 토글 (`ContentNotifications`, 기본 on).
 ///       · `MealReminderService` 가 SharedPreferences 영속화 + OS 스케줄 동기화.
+///   - "GLP-1 투약 관리" → `/medication` (기본 꺼짐, 진입해서 켠다).
 ///   - "프라이버시 · 데이터" → 바텀시트
 ///       · 내 데이터 내보내기 (entries JSON 을 클립보드에 복사).
 ///       · 계정 삭제 (profiles + entries 하드 삭제 후 로그아웃).
@@ -85,6 +87,11 @@ class ProfilePage extends ConsumerWidget {
                   label: '즐겨찾기 관리',
                   onTap: () => context.push('/favorites'),
                 ),
+                _MenuItem(
+                  icon: Icons.vaccines_outlined,
+                  label: 'GLP-1 투약 관리 💉',
+                  onTap: () => context.push('/medication'),
+                ),
               ],
             ),
             const SizedBox(height: FoodietShape.sp16),
@@ -152,8 +159,9 @@ class ProfilePage extends ConsumerWidget {
                 if (auth.currentUser != null) {
                   await auth.signOut();
                 }
-                // 로컬 끼니 리마인더도 함께 정리.
+                // 로컬 끼니 리마인더·콘텐츠 알림(주간 체크인·투약)도 함께 정리.
                 await MealReminderService.instance.cancelAll();
+                await ContentNotifications.instance.cancelAll();
                 if (context.mounted) context.go('/sign-in');
               },
             ),
@@ -362,11 +370,12 @@ class _MenuItem extends StatelessWidget {
 
 // ── 알림 설정 시트 ──────────────────────────────────────────────────
 //
-// 끼니 리마인더 한 가지만 노출.
+// 끼니 리마인더 + 주간 체크인 알림.
 //   - master 토글: ON 이어야 아래 끼니별 알림이 발화.
 //   - 끼니별 (아침/점심/저녁): 각각 ON/OFF + 시각.
 //   - 시각 탭하면 시스템 TimePicker 가 떠서 분 단위로 조정.
 // 모든 변경은 즉시 [MealReminderService] 로 저장 + OS 스케줄과 동기화.
+// 주간 체크인(일 20:00, ID 200)은 [ContentNotifications] 가 저장·예약한다.
 //
 // 스트릭 응원: 항상 ON 으로 동작 (백엔드 미구현 — 추후 도입 시 자동 적용).
 //   사용자가 따로 끄거나 켤 항목이 아님이라 UI 에서 빼둠.
@@ -382,6 +391,7 @@ class _NotificationSettingsSheetState
     extends State<_NotificationSettingsSheet> {
   bool _loading = true;
   late MealReminderPrefs _prefs;
+  bool _weeklyCheckin = true;
 
   @override
   void initState() {
@@ -391,11 +401,23 @@ class _NotificationSettingsSheetState
 
   Future<void> _load() async {
     final p = await MealReminderService.instance.loadPrefs();
+    var weekly = true;
+    try {
+      weekly = await ContentNotifications.instance.weeklyCheckinEnabled();
+    } catch (_) {/* 기본 on */}
     if (!mounted) return;
     setState(() {
       _prefs = p;
+      _weeklyCheckin = weekly;
       _loading = false;
     });
+  }
+
+  Future<void> _setWeeklyCheckin(bool v) async {
+    setState(() => _weeklyCheckin = v);
+    try {
+      await ContentNotifications.instance.setWeeklyCheckinEnabled(v);
+    } catch (_) {/* 저장 실패해도 시트는 유지 */}
   }
 
   Future<void> _save(MealReminderPrefs next) async {
@@ -452,7 +474,7 @@ class _NotificationSettingsSheetState
                   style: FoodietText.h3
                       .copyWith(color: FoodietColors.warm900)),
               const SizedBox(height: 4),
-              Text('끼니 시간에 기록 안 했을 때 부드럽게 알려줄게.',
+              Text('끼니 기록이랑 한 주 돌아보기를 부드럽게 알려줄게.',
                   style: FoodietText.bodySm
                       .copyWith(color: FoodietColors.warm500)),
               const SizedBox(height: FoodietShape.sp16),
@@ -491,6 +513,13 @@ class _NotificationSettingsSheetState
                       const SizedBox(height: FoodietShape.sp8),
                   ],
                 ],
+                const SizedBox(height: FoodietShape.sp12),
+                _ToggleRow(
+                  title: '주간 체크인 알림',
+                  subtitle: '일요일 저녁 8시에 한 주 돌아보기',
+                  value: _weeklyCheckin,
+                  onChanged: _setWeeklyCheckin,
+                ),
                 const SizedBox(height: FoodietShape.sp16),
                 Text(
                   '* 알림은 기기에서 직접 발화돼. 비행기 모드여도 시간이 되면 떠.\n'

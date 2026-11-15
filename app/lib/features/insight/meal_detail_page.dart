@@ -2,24 +2,137 @@
 ///
 /// 재료(수량) · 만드는 방법 · 쇼핑 구매리스트(쿠팡·이마트·컬리 검색) · 참고리스트.
 /// 모든 상세는 식단 생성 시 함께 만들어져 plan_json 에 저장된 값이다.
+/// 하단 "이대로 먹었어" — 사진 없이 1탭 기록(source 'meal_plan') + 실행취소 스낵바.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../providers/entries_provider.dart';
+import '../../services/app_events.dart';
+import '../../services/manual_entry_service.dart';
 import '../../services/meal_plan_service.dart';
 import '../../theme/foodiet_tokens.dart';
+import '../../widgets/primary_button.dart';
 import 'meal_plan_citations_sheet.dart';
 
-class MealDetailPage extends StatelessWidget {
+class MealDetailPage extends ConsumerStatefulWidget {
   const MealDetailPage({super.key, required this.meal, this.plan});
   final MealPlanMeal meal;
   final MealPlan? plan;
 
   @override
+  ConsumerState<MealDetailPage> createState() => _MealDetailPageState();
+}
+
+class _MealDetailPageState extends ConsumerState<MealDetailPage> {
+  MealPlanMeal get meal => widget.meal;
+  MealPlan? get plan => widget.plan;
+
+  /// insert 진행 중 — 연타로 중복 기록되지 않게.
+  bool _busy = false;
+
+  /// 방금 기록한 entry id. 실행취소 전까지 버튼은 "기록했어 ✓" 로 잠긴다.
+  String? _recordedId;
+
+  Future<void> _logMeal() async {
+    if (_busy || _recordedId != null) return;
+    // 페이지를 닫은 뒤 스낵바의 실행취소가 눌려도 안전하도록 먼저 잡아 둔다.
+    final messenger = ScaffoldMessenger.of(context);
+    final container = ProviderScope.containerOf(context, listen: false);
+    final service = ref.read(manualEntryServiceProvider);
+    setState(() => _busy = true);
+    try {
+      final id = await service.record(
+        source: 'meal_plan',
+        title: meal.name,
+        kcal: meal.kcal,
+        carbG: meal.carbG.toDouble(),
+        proteinG: meal.proteinG.toDouble(),
+        fatG: meal.fatG.toDouble(),
+        planSlot: meal.slot,
+      );
+      container.invalidate(todayEntriesProvider);
+      container.invalidate(recentEntriesProvider);
+      unawaited(AppEvents.log('plan_logged', {
+        'slot': meal.slot,
+        'kcal': meal.kcal,
+        if (plan != null) 'plan_id': plan!.id,
+      }));
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _recordedId = id;
+        });
+      }
+      messenger
+        ..clearSnackBars()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+                '기록했어 · ${meal.name.trim().isEmpty ? '푸디 추천 한 끼' : meal.name.trim()} ${meal.kcal} kcal'),
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: '실행취소',
+              onPressed: () async {
+                try {
+                  await service.undo(id);
+                } catch (_) {
+                  messenger.showSnackBar(
+                      const SnackBar(content: Text('되돌리지 못했어. 기록 탭에서 지워줘.')));
+                  return;
+                }
+                container.invalidate(todayEntriesProvider);
+                container.invalidate(recentEntriesProvider);
+                if (mounted && _recordedId == id) {
+                  setState(() => _recordedId = null);
+                }
+              },
+            ),
+          ),
+        );
+    } catch (e) {
+      if (mounted) setState(() => _busy = false);
+      messenger
+        ..clearSnackBars()
+        ..showSnackBar(SnackBar(
+            content: Text(e is ManualEntryException
+                ? e.message
+                : '기록 못 했어. 잠깐 뒤에 다시 해볼래?')));
+    }
+  }
+
+  Widget _logBar() {
+    final done = _recordedId != null;
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(FoodietShape.sp20, FoodietShape.sp12,
+            FoodietShape.sp20, FoodietShape.sp12),
+        decoration: const BoxDecoration(
+          color: FoodietColors.cream00,
+          border: Border(top: BorderSide(color: FoodietColors.cream100)),
+        ),
+        child: PrimaryButton(
+          label: done
+              ? '기록했어 ✓'
+              : _busy
+                  ? '기록하는 중…'
+                  : '이대로 먹었어 🍽️',
+          onPressed: (done || _busy) ? null : _logMeal,
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: FoodietColors.cream00,
+      bottomNavigationBar: _logBar(),
       appBar: AppBar(
         backgroundColor: FoodietColors.cream00,
         elevation: 0,
@@ -48,15 +161,14 @@ class MealDetailPage extends StatelessWidget {
                         color: FoodietColors.warm900,
                         fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
-                Text(
-                    '탄 ${meal.carbG}g · 단 ${meal.proteinG}g · 지 ${meal.fatG}g',
+                Text('탄 ${meal.carbG}g · 단 ${meal.proteinG}g · 지 ${meal.fatG}g',
                     style: FoodietText.bodySm
                         .copyWith(color: FoodietColors.warm500)),
                 if (meal.recipeBrief.isNotEmpty) ...[
                   const SizedBox(height: FoodietShape.sp12),
                   Text(meal.recipeBrief,
-                      style: FoodietText.body.copyWith(
-                          color: FoodietColors.warm700, height: 1.5)),
+                      style: FoodietText.body
+                          .copyWith(color: FoodietColors.warm700, height: 1.5)),
                 ],
                 _ingredientsSection(),
                 _stepsSection(),
@@ -81,8 +193,7 @@ class MealDetailPage extends StatelessWidget {
           ),
           child: Text(_slotLabel(meal.slot),
               style: FoodietText.caption.copyWith(
-                  color: _slotColor(meal.slot),
-                  fontWeight: FontWeight.w700)),
+                  color: _slotColor(meal.slot), fontWeight: FontWeight.w700)),
         ),
         const SizedBox(width: 8),
         Text('${meal.kcal} kcal',
@@ -163,8 +274,8 @@ class MealDetailPage extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(steps[i],
-                      style: FoodietText.body.copyWith(
-                          color: FoodietColors.warm900, height: 1.5)),
+                      style: FoodietText.body
+                          .copyWith(color: FoodietColors.warm900, height: 1.5)),
                 ),
               ],
             ),
@@ -195,8 +306,7 @@ class MealDetailPage extends StatelessWidget {
               child: Row(
                 children: [
                   Expanded(
-                    child: Text(
-                        s.qty.isEmpty ? s.name : '${s.name}  ${s.qty}',
+                    child: Text(s.qty.isEmpty ? s.name : '${s.name}  ${s.qty}',
                         style: FoodietText.bodySm.copyWith(
                             color: FoodietColors.warm900,
                             fontWeight: FontWeight.w700)),

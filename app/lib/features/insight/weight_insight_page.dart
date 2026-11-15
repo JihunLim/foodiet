@@ -19,9 +19,11 @@ import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../providers/profile_provider.dart';
 import '../../providers/weight_provider.dart';
+import '../../services/weight_trend.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/science_citations_sheet.dart';
 import 'weight_log_sheet.dart';
+import 'weight_trend_cards.dart';
 
 class WeightInsightPage extends ConsumerWidget {
   const WeightInsightPage({super.key});
@@ -76,6 +78,13 @@ class _WeightInsightBody extends ConsumerWidget {
       return _MissingProfileView();
     }
 
+    final profile = ref.watch(profileProvider).valueOrNull;
+    // 하루 값 대신 EMA 추세 체중 — 차트 추세선·스파이크/정체기/재계산 판단에 사용.
+    final trend = trendSeries([
+      for (final l in logs) (at: l.loggedAt, kg: l.weightKg),
+    ]);
+    final trendCards = WeightTrendCards(series: trend, profile: profile);
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(
           FoodietShape.sp20, FoodietShape.sp12, FoodietShape.sp20,
@@ -84,10 +93,14 @@ class _WeightInsightBody extends ConsumerWidget {
         _HeroCard(proj: proj, logs: logs, onLog: () => _openLogSheet(context)),
         const SizedBox(height: FoodietShape.sp12),
 
+        // 스파이크 / 정체기 / 목표 재계산 — 해당할 때만 (없으면 0 높이,
+        // 있으면 아래 간격까지 위젯이 포함).
+        trendCards,
+
         // 목표 체중 없을 때 — 차트(골라인 없이)까지 보여주고 CTA.
         if (proj.verdict == WeightVerdict.missingGoal) ...[
           if (logs.isNotEmpty) ...[
-            _ProjectionChartCard(proj: proj, logs: logs),
+            _ProjectionChartCard(proj: proj, logs: logs, trend: trend),
             const SizedBox(height: FoodietShape.sp12),
           ],
           _SetupPromptCard(
@@ -98,7 +111,7 @@ class _WeightInsightBody extends ConsumerWidget {
             onTap: () => context.push('/profile/edit'),
           ),
         ] else if (proj.verdict == WeightVerdict.notEnoughIntake) ...[
-          _ProjectionChartCard(proj: proj, logs: logs),
+          _ProjectionChartCard(proj: proj, logs: logs, trend: trend),
           const SizedBox(height: FoodietShape.sp12),
           _SetupPromptCard(
             emoji: '📸',
@@ -109,7 +122,7 @@ class _WeightInsightBody extends ConsumerWidget {
             onTap: () => context.go('/camera'),
           ),
         ] else if (proj.verdict == WeightVerdict.missingDeadline) ...[
-          _ProjectionChartCard(proj: proj, logs: logs),
+          _ProjectionChartCard(proj: proj, logs: logs, trend: trend),
           const SizedBox(height: FoodietShape.sp12),
           _PaceCard(proj: proj),
           const SizedBox(height: FoodietShape.sp12),
@@ -123,7 +136,7 @@ class _WeightInsightBody extends ConsumerWidget {
           const SizedBox(height: FoodietShape.sp12),
           _MetricsCard(proj: proj),
         ] else if (proj.verdict == WeightVerdict.pastDeadline) ...[
-          _ProjectionChartCard(proj: proj, logs: logs),
+          _ProjectionChartCard(proj: proj, logs: logs, trend: trend),
           const SizedBox(height: FoodietShape.sp12),
           _SetupPromptCard(
             emoji: '⏰',
@@ -135,17 +148,25 @@ class _WeightInsightBody extends ConsumerWidget {
           const SizedBox(height: FoodietShape.sp12),
           _MetricsCard(proj: proj),
         ] else if (proj.verdict == WeightVerdict.atGoal) ...[
-          _ProjectionChartCard(proj: proj, logs: logs),
+          _ProjectionChartCard(proj: proj, logs: logs, trend: trend),
           const SizedBox(height: FoodietShape.sp12),
-          _AtGoalCard(proj: proj),
+          _AtGoalCard(
+            proj: proj,
+            profile: profile,
+            weightKg: trend.isNotEmpty ? trend.last.trendKg : proj.startWeightKg,
+          ),
           const SizedBox(height: FoodietShape.sp12),
           _MetricsCard(proj: proj),
         ] else ...[
           // 메인 경로 — 예측 차트 + verdict + 메트릭.
-          _ProjectionChartCard(proj: proj, logs: logs),
+          _ProjectionChartCard(proj: proj, logs: logs, trend: trend),
           const SizedBox(height: FoodietShape.sp12),
-          _VerdictCard(proj: proj),
-          const SizedBox(height: FoodietShape.sp12),
+          // 유지 모드에서는 "하루 N kcal 줄여야" 식 감량/증량 판정을 띄우지 않는다
+          // (사용자가 적자 없는 목표를 고른 상태).
+          if (profile?.isMaintainMode != true) ...[
+            _VerdictCard(proj: proj),
+            const SizedBox(height: FoodietShape.sp12),
+          ],
           _MetricsCard(proj: proj),
         ],
 
@@ -431,12 +452,20 @@ class _GoalPill extends StatelessWidget {
 // ─── 투영 차트 ────────────────────────────────────────────────────────────
 
 class _ProjectionChartCard extends StatelessWidget {
-  const _ProjectionChartCard({required this.proj, required this.logs});
+  const _ProjectionChartCard({
+    required this.proj,
+    required this.logs,
+    this.trend = const [],
+  });
   final WeightProjection proj;
   final List<WeightLog> logs;
 
+  /// EMA 추세 체중 (날짜 오름차순). 2점 이상일 때만 선으로 그린다.
+  final List<TrendPoint> trend;
+
   @override
   Widget build(BuildContext context) {
+    final showTrend = trend.length >= 2;
     return Container(
       padding: const EdgeInsets.all(FoodietShape.sp16),
       decoration: BoxDecoration(
@@ -447,24 +476,31 @@ class _ProjectionChartCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _cardHeader('체중 추이 + 예측',
-              '실측 점은 네가 찍은 값, 점선은 현재 섭취 추이로 본 예측'),
+          _cardHeader(
+              '체중 추이 + 예측',
+              showTrend
+                  ? '점은 네가 찍은 값, 진한 선은 하루 변동을 걸러낸 추세, 점선은 예측'
+                  : '실측 점은 네가 찍은 값, 점선은 현재 섭취 추이로 본 예측'),
           const SizedBox(height: FoodietShape.sp12),
           SizedBox(
             height: 200,
             child: LayoutBuilder(
               builder: (ctx, c) => CustomPaint(
                 size: Size(c.maxWidth, c.maxHeight),
-                painter: _ProjectionPainter(proj: proj, logs: logs),
+                painter: _ProjectionPainter(
+                    proj: proj, logs: logs, trend: showTrend ? trend : const []),
               ),
             ),
           ),
           const SizedBox(height: FoodietShape.sp8),
-          const _Legend(items: [
-            _LegendItem(
+          _Legend(items: [
+            const _LegendItem(
                 color: FoodietColors.coral500, label: '실측', dot: true),
-            _LegendItem(color: FoodietColors.coral500, label: '예측', dashed: true),
-            _LegendItem(
+            if (showTrend)
+              const _LegendItem(color: FoodietColors.warm700, label: '추세'),
+            const _LegendItem(
+                color: FoodietColors.coral500, label: '예측', dashed: true),
+            const _LegendItem(
                 color: FoodietColors.leaf500, label: '목표', dashed: true),
           ]),
         ],
@@ -474,9 +510,14 @@ class _ProjectionChartCard extends StatelessWidget {
 }
 
 class _ProjectionPainter extends CustomPainter {
-  _ProjectionPainter({required this.proj, required this.logs});
+  _ProjectionPainter({
+    required this.proj,
+    required this.logs,
+    this.trend = const [],
+  });
   final WeightProjection proj;
   final List<WeightLog> logs;
+  final List<TrendPoint> trend;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -689,6 +730,28 @@ class _ProjectionPainter extends CustomPainter {
         }
       }
       canvas.drawPath(path, linePaint);
+
+      // ─── 추세선 (EMA, 실선) — 점 아래에 깔아 실측 점이 위로 보이게 ───
+      if (trend.length >= 2) {
+        final trendPaint = Paint()
+          ..color = FoodietColors.warm700.withValues(alpha: 0.85)
+          ..strokeWidth = 2.4
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round;
+        final tp = Path();
+        for (int i = 0; i < trend.length; i++) {
+          final t = trend[i];
+          final o = Offset(xFor(t.date), yFor(t.trendKg));
+          if (i == 0) {
+            tp.moveTo(o.dx, o.dy);
+          } else {
+            tp.lineTo(o.dx, o.dy);
+          }
+        }
+        canvas.drawPath(tp, trendPaint);
+      }
+
       final dotFill = Paint()..color = FoodietColors.coral500;
       final dotRing = Paint()
         ..color = FoodietColors.cream00
@@ -763,7 +826,10 @@ class _ProjectionPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _ProjectionPainter old) {
-    return old.proj != proj || old.logs.length != logs.length;
+    return old.proj != proj ||
+        old.logs.length != logs.length ||
+        old.trend.length != trend.length ||
+        (trend.isNotEmpty && old.trend.last.trendKg != trend.last.trendKg);
   }
 }
 
@@ -982,8 +1048,16 @@ class _PaceCard extends StatelessWidget {
 }
 
 class _AtGoalCard extends StatelessWidget {
-  const _AtGoalCard({required this.proj});
+  const _AtGoalCard({
+    required this.proj,
+    required this.profile,
+    required this.weightKg,
+  });
   final WeightProjection proj;
+  final AppProfile? profile;
+
+  /// 유지 칼로리 계산 기준 체중 (최신 추세 체중).
+  final double weightKg;
 
   @override
   Widget build(BuildContext context) {
@@ -1018,6 +1092,8 @@ class _AtGoalCard extends StatelessWidget {
                     '이제는 유지 단계. TDEE ${proj.tdeeKcal ?? "—"} kcal 근처로 먹으면 지금 체중이 유지돼.',
                     style: FoodietText.bodySm
                         .copyWith(color: FoodietColors.warm700)),
+                const SizedBox(height: FoodietShape.sp12),
+                MaintainModeAction(profile: profile, weightKg: weightKg),
               ],
             ),
           ),

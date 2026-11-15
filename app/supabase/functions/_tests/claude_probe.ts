@@ -3,7 +3,8 @@
 // `_`-prefix 라 supabase 가 무시)
 //
 // 무엇을 증명하나 (모두 _shared/claude.ts 의 claudeJson 경유 = 배포 코드와 같은 경로)
-//   1) [VISION]     base64 JPEG + analyze-entry 스키마 → 스키마 JSON 이 오는가
+//   1) [VISION]     base64 JPEG + analyze-entry 스키마(schema.ts 그대로) → 스키마 JSON
+//                   + postProcessFeedback 을 통과하는 한 끼 피드백이 오는가
 //   2) [텍스트]     home-coach 스키마 → 스키마 JSON + headline 20자 이내인가
 //   3) [식단]       generate-meal-plan 뼈대 1회 + 요일 상세(기본 1일, FULL_WEEK=1 이면
 //                   7일 병렬) → 스키마 JSON + 소요시간이 edge 150s 한도 안인가
@@ -17,10 +18,19 @@
 //   ANTHROPIC_MODEL  (default 'claude-opus-5-5')  — prod 와 동일하게 맞춰서 테스트
 //   IMAGE_URL        (음식 사진 URL. 스크립트가 받아서 base64 로 보낸다)
 //   FULL_WEEK=1      (식단 7일 병렬까지 — 실제 함수와 같은 부하/지연 측정)
+//   ONLY=vision,home,mealplan  (콤마 구분 — 일부 단계만 실행. 기본 전부)
 //
-// 스키마는 각 함수 index.ts 와 동일하게 유지할 것 (충실한 재현).
+// analyze-entry 스키마·프롬프트는 analyze-entry/schema.ts 에서 그대로 import 한다.
+// 나머지 스키마는 각 함수 index.ts 와 동일하게 유지할 것 (충실한 재현).
 
 import { CLAUDE_MODEL, claudeJson } from '../_shared/claude.ts';
+import {
+  buildSystemPrompt,
+  buildUserPrompt,
+  type LlmResult,
+  postProcessFeedback,
+  RESPONSE_SCHEMA as ANALYZE_SCHEMA,
+} from '../analyze-entry/schema.ts';
 
 if (!Deno.env.get('ANTHROPIC_API_KEY')) {
   console.error('✗ ANTHROPIC_API_KEY 가 필요합니다. (Edge Function Secrets 의 그 키)');
@@ -30,53 +40,8 @@ if (!Deno.env.get('ANTHROPIC_API_KEY')) {
 const IMAGE_URL = Deno.env.get('IMAGE_URL') ??
   'https://upload.wikimedia.org/wikipedia/commons/4/44/Dolsot-bibimbap.jpg';
 const FULL_WEEK = Deno.env.get('FULL_WEEK') === '1';
-
-// ── analyze-entry/index.ts RESPONSE_SCHEMA ─────────────────────────────
-const ANALYZE_SCHEMA = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['meal_slot', 'eating_type', 'items', 'totals', 'confidence'],
-  properties: {
-    meal_slot: { type: 'string', enum: ['breakfast', 'lunch', 'dinner', 'late_night'] },
-    eating_type: { type: 'string', enum: ['meal', 'snack', 'beverage'] },
-    items: {
-      type: 'array',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: [
-          'name', 'qty_g', 'kcal', 'carb_g', 'protein_g', 'fat_g',
-          'sodium_mg', 'sugar_g', 'confidence',
-        ],
-        properties: {
-          name: { type: 'string' },
-          qty_g: { type: 'number' },
-          kcal: { type: 'integer' },
-          carb_g: { type: 'number' },
-          protein_g: { type: 'number' },
-          fat_g: { type: 'number' },
-          sodium_mg: { type: 'integer' },
-          sugar_g: { type: 'number' },
-          confidence: { type: 'number', description: '0~1' },
-        },
-      },
-    },
-    totals: {
-      type: 'object',
-      additionalProperties: false,
-      required: ['kcal', 'carb_g', 'protein_g', 'fat_g', 'sodium_mg', 'sugar_g'],
-      properties: {
-        kcal: { type: 'integer' },
-        carb_g: { type: 'number' },
-        protein_g: { type: 'number' },
-        fat_g: { type: 'number' },
-        sodium_mg: { type: 'integer' },
-        sugar_g: { type: 'number' },
-      },
-    },
-    confidence: { type: 'number', description: '0~1' },
-  },
-};
+const ONLY = (Deno.env.get('ONLY') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+const run = (step: string) => ONLY.length === 0 || ONLY.includes(step);
 
 // ── home-coach/index.ts RESPONSE_SCHEMA ────────────────────────────────
 const HOME_SCHEMA = {
@@ -185,45 +150,55 @@ const results: Record<string, boolean> = {};
 console.log(`모델=${CLAUDE_MODEL}  FULL_WEEK=${FULL_WEEK}`);
 
 // ── 1) VISION ─────────────────────────────────────────────────────────
-header('1) VISION — analyze-entry (base64 JPEG)');
-try {
-  const img = await fetch(IMAGE_URL, { headers: { 'user-agent': 'foodiet-probe/1.0' } });
-  if (!img.ok) throw new Error(`image fetch ${img.status}`);
-  const bytes = new Uint8Array(await img.arrayBuffer());
-  const t = Date.now();
-  const r = await claudeJson<{ items: Array<{ name: string; kcal: number }>; totals: { kcal: number }; confidence: number }>({
-    tag: 'probe-vision',
-    system: 'You are a nutrition analyst for a Korean diet tracking app. ' +
-      'Analyze the meal photo and return strict JSON matching the provided schema. ' +
-      'totals.kcal MUST equal sum of items.kcal (within ±5%). ' +
-      'Names in Korean. Lower confidence is better than wrong.',
-    content: [
-      { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: toBase64(bytes) } },
-      { type: 'text', text: 'Captured at: 2026-11-01T12:30:00+09:00 (locale=ko).\nReturn JSON only. No prose.' },
-    ],
-    schema: ANALYZE_SCHEMA,
-  });
-  const sum = r.items.reduce((s, it) => s + it.kcal, 0);
-  console.log(`✓ ${Date.now() - t}ms  items=${r.items.length}  totals.kcal=${r.totals.kcal}  Σitems=${sum}  conf=${r.confidence}`);
-  console.log('  ' + r.items.map((it) => `${it.name}(${it.kcal})`).join(', '));
-  results.vision = r.items.length > 0;
-} catch (e) {
-  console.log(`✗ ${e}`);
-  results.vision = false;
+if (run('vision')) {
+  header('1) VISION — analyze-entry (base64 JPEG) + 한 끼 피드백');
+  try {
+    const img = await fetch(IMAGE_URL, { headers: { 'user-agent': 'foodiet-probe/1.0' } });
+    if (!img.ok) throw new Error(`image fetch ${img.status}`);
+    const bytes = new Uint8Array(await img.arrayBuffer());
+    const t = Date.now();
+    const r = await claudeJson<LlmResult>({
+      tag: 'probe-vision',
+      system: buildSystemPrompt('lunch'),
+      content: [
+        { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: toBase64(bytes) } },
+        {
+          type: 'text',
+          text: buildUserPrompt(
+            '2026-11-01T12:30:00+09:00',
+            'ko',
+            '[사용자] 목표 1500 kcal · 이 끼니 전 오늘 320 kcal · 모드 감량 · 여성 (하한 1200 kcal) · GLP-1 사용 중',
+          ),
+        },
+      ],
+      schema: ANALYZE_SCHEMA,
+    });
+    const sum = r.items.reduce((s, it) => s + it.kcal, 0);
+    console.log(`✓ ${Date.now() - t}ms  items=${r.items.length}  totals.kcal=${r.totals.kcal}  Σitems=${sum}  conf=${r.confidence}`);
+    console.log('  ' + r.items.map((it) => `${it.name}(${it.kcal})`).join(', '));
+    console.log('  raw feedback: ' + JSON.stringify(r.feedback));
+    const fb = postProcessFeedback(r.feedback);
+    console.log('  postprocessed: ' + JSON.stringify(fb, null, 2).replaceAll('\n', '\n  '));
+    results.vision = r.items.length > 0 && fb !== null;
+  } catch (e) {
+    console.log(`✗ ${e}`);
+    results.vision = false;
+  }
 }
 
 // ── 2) home-coach ─────────────────────────────────────────────────────
-header('2) TEXT — home-coach');
-try {
-  const t = Date.now();
-  const r = await claudeJson<{ emoji: string; headline: string; review: string; next_tip: string; focus: string }>({
-    tag: 'probe-home',
-    system: `당신은 Foodiet 앱의 AI 식단 코치 "푸디"입니다.
+if (run('home')) {
+  header('2) TEXT — home-coach');
+  try {
+    const t = Date.now();
+    const r = await claudeJson<{ emoji: string; headline: string; review: string; next_tip: string; focus: string }>({
+      tag: 'probe-home',
+      system: `당신은 Foodiet 앱의 AI 식단 코치 "푸디"입니다.
 한국어 반말, 친근하고 긍정적인 톤으로 사용자의 다이어트를 응원하세요.
 - "실패", "어겼다", "망쳤다", "해주세요" 등 부정/사무적인 어휘는 금지.
 - 응답은 JSON 스키마에만 엄격히 맞춰주세요.
 - headline 은 20자 이내. 이모지는 emoji 필드에만 넣고 본문에는 금지.`,
-    content: `[프로필]
+      content: `[프로필]
 닉네임: 지훈
 일일 목표: 1800 kcal
 
@@ -238,54 +213,57 @@ try {
 합계: 1100 / 1800 kcal (남은 700 kcal)
 탄수 150g · 단백 48g · 지방 30g
 나트륨 1900mg · 당 32g`,
-    schema: HOME_SCHEMA,
-  });
-  console.log(`✓ ${Date.now() - t}ms  ${r.emoji} ${r.headline} (${[...r.headline].length}자) / focus=${r.focus}`);
-  console.log(`  review: ${r.review}\n  next_tip: ${r.next_tip}`);
-  results.home = typeof r.headline === 'string' && r.headline.length > 0;
-} catch (e) {
-  console.log(`✗ ${e}`);
-  results.home = false;
+      schema: HOME_SCHEMA,
+    });
+    console.log(`✓ ${Date.now() - t}ms  ${r.emoji} ${r.headline} (${[...r.headline].length}자) / focus=${r.focus}`);
+    console.log(`  review: ${r.review}\n  next_tip: ${r.next_tip}`);
+    results.home = typeof r.headline === 'string' && r.headline.length > 0;
+  } catch (e) {
+    console.log(`✗ ${e}`);
+    results.home = false;
+  }
 }
 
 // ── 3) generate-meal-plan ─────────────────────────────────────────────
-header(`3) MEAL PLAN — 뼈대 + 요일 상세 ${FULL_WEEK ? '7일 병렬' : '1일'}`);
-try {
-  const ctx = `[프로필]\n일일 목표: 1800 kcal\n[입력]\n알레르기(선택): 땅콩\n포함할 끼니: breakfast, lunch, dinner\n끼니별 목표 칼로리: 아침 594kcal, 점심 594kcal, 저녁 612kcal`;
-  const t0 = Date.now();
-  const sk = await claudeJson<{ days: Array<{ date_offset: number; label: string; meals: Array<{ slot: string; name: string; target_kcal: number }> }> }>({
-    tag: 'probe-skeleton',
-    system: '당신은 Foodiet 앱의 영양 코치 "푸디"예요. 한국어 반말. 알레르기 재료는 절대 넣지 마. ' +
-      '같은 요리를 7일 동안 반복하지 마. 선택한 끼니만 채워. 응답은 JSON 스키마에만 엄격히 맞추세요.',
-    content: `${ctx}\n\n[요청] 이번 주(월~일) 7일치 "메뉴 뼈대"를 JSON 으로 만들어줘. days 는 정확히 7개, date_offset 0~6.`,
-    schema: SKELETON_SCHEMA,
-  });
-  const skMs = Date.now() - t0;
-  console.log(`✓ skeleton ${skMs}ms  days=${sk.days.length}  ` +
-    sk.days.map((d) => d.label).join(','));
-  const targets = FULL_WEEK ? sk.days.slice(0, 7) : sk.days.slice(0, 1);
-  const t1 = Date.now();
-  const details = await Promise.all(targets.map((d) =>
-    claudeJson<{ total_kcal: number; meals: Array<{ name: string; kcal: number; steps: string[] }> }>({
-      tag: `probe-day${d.date_offset}`,
-      system: '당신은 Foodiet 앱의 영양 코치 "푸디"예요. 한국어 반말. 알레르기 재료(땅콩)는 넣지 마. ' +
-        'meals 의 slot·name 은 주어진 그대로. steps 는 5~9단계로 아주 자세히. 응답은 JSON 스키마에만 엄격히 맞추세요.',
-      content: `${ctx}\n\n[오늘 = ${d.label} (date_offset ${d.date_offset})]\n` +
-        d.meals.map((m) => `- slot=${m.slot}: ${m.name} / 목표 ${m.target_kcal}kcal`).join('\n'),
-      schema: DAY_SCHEMA,
-    })
-  ));
-  const dayMs = Date.now() - t1;
-  for (const d of details) {
-    console.log(`  · total=${d.total_kcal}  ` + d.meals.map((m) => `${m.name}(${m.kcal}, ${m.steps.length}단계)`).join(' / '));
+if (run('mealplan')) {
+  header(`3) MEAL PLAN — 뼈대 + 요일 상세 ${FULL_WEEK ? '7일 병렬' : '1일'}`);
+  try {
+    const ctx = `[프로필]\n일일 목표: 1800 kcal\n[입력]\n알레르기(선택): 땅콩\n포함할 끼니: breakfast, lunch, dinner\n끼니별 목표 칼로리: 아침 594kcal, 점심 594kcal, 저녁 612kcal`;
+    const t0 = Date.now();
+    const sk = await claudeJson<{ days: Array<{ date_offset: number; label: string; meals: Array<{ slot: string; name: string; target_kcal: number }> }> }>({
+      tag: 'probe-skeleton',
+      system: '당신은 Foodiet 앱의 영양 코치 "푸디"예요. 한국어 반말. 알레르기 재료는 절대 넣지 마. ' +
+        '같은 요리를 7일 동안 반복하지 마. 선택한 끼니만 채워. 응답은 JSON 스키마에만 엄격히 맞추세요.',
+      content: `${ctx}\n\n[요청] 이번 주(월~일) 7일치 "메뉴 뼈대"를 JSON 으로 만들어줘. days 는 정확히 7개, date_offset 0~6.`,
+      schema: SKELETON_SCHEMA,
+    });
+    const skMs = Date.now() - t0;
+    console.log(`✓ skeleton ${skMs}ms  days=${sk.days.length}  ` +
+      sk.days.map((d) => d.label).join(','));
+    const targets = FULL_WEEK ? sk.days.slice(0, 7) : sk.days.slice(0, 1);
+    const t1 = Date.now();
+    const details = await Promise.all(targets.map((d) =>
+      claudeJson<{ total_kcal: number; meals: Array<{ name: string; kcal: number; steps: string[] }> }>({
+        tag: `probe-day${d.date_offset}`,
+        system: '당신은 Foodiet 앱의 영양 코치 "푸디"예요. 한국어 반말. 알레르기 재료(땅콩)는 넣지 마. ' +
+          'meals 의 slot·name 은 주어진 그대로. steps 는 5~9단계로 아주 자세히. 응답은 JSON 스키마에만 엄격히 맞추세요.',
+        content: `${ctx}\n\n[오늘 = ${d.label} (date_offset ${d.date_offset})]\n` +
+          d.meals.map((m) => `- slot=${m.slot}: ${m.name} / 목표 ${m.target_kcal}kcal`).join('\n'),
+        schema: DAY_SCHEMA,
+      })
+    ));
+    const dayMs = Date.now() - t1;
+    for (const d of details) {
+      console.log(`  · total=${d.total_kcal}  ` + d.meals.map((m) => `${m.name}(${m.kcal}, ${m.steps.length}단계)`).join(' / '));
+    }
+    const total = skMs + dayMs;
+    console.log(`✓ 상세 ${targets.length}일 ${dayMs}ms  → 합계 ${total}ms (edge 한도 150000ms)`);
+    results.mealplan = sk.days.length === 7 && details.every((d) => d.meals.length > 0) &&
+      (!FULL_WEEK || total < 150_000);
+  } catch (e) {
+    console.log(`✗ ${e}`);
+    results.mealplan = false;
   }
-  const total = skMs + dayMs;
-  console.log(`✓ 상세 ${targets.length}일 ${dayMs}ms  → 합계 ${total}ms (edge 한도 150000ms)`);
-  results.mealplan = sk.days.length === 7 && details.every((d) => d.meals.length > 0) &&
-    (!FULL_WEEK || total < 150_000);
-} catch (e) {
-  console.log(`✗ ${e}`);
-  results.mealplan = false;
 }
 
 header('결과');
