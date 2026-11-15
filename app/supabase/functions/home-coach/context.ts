@@ -5,6 +5,7 @@
 // probe : supabase/functions/_tests/home_coach_probe.ts
 
 // §7.9 — 금지어. 어떤 출력 필드에도 등장하면 안전 문구로 대체한다.
+import { unsafeText } from '../_shared/safety.ts';
 export const BANNED = ['실패', '어겼다', '망쳤다', '해주세요', '나쁜 음식'];
 
 export const RESPONSE_SCHEMA = {
@@ -372,10 +373,12 @@ export function buildSignature(p: {
   mode: GoalMode;
   glp1: boolean;
   planCount: number;
+  /// 하한 적용 후 일일 목표 — 목표 재계산 직후 옛 '남은 kcal' 캐시를 피한다.
+  target?: number;
 }): string {
   const x = (p.experiment ?? '').replaceAll('|', '/');
   return `${p.base}|day:${p.dayKey}|w:${p.weekKey}|x:${x}` +
-    `|m:${p.mode}|g:${p.glp1 ? 1 : 0}|pl:${p.planCount}`;
+    `|m:${p.mode}|g:${p.glp1 ? 1 : 0}|pl:${p.planCount}|t:${p.target ?? ''}`;
 }
 
 // ── 출력 후처리 ──────────────────────────────────────────────────────
@@ -396,7 +399,8 @@ export const HEADLINE_MAX = 20;
 function unsafe(s: unknown): boolean {
   if (typeof s !== 'string' || s.trim() === '') return true;
   return BANNED.some((b) => s.includes(b)) ||
-    MEDICATION_WORDS.some((w) => s.includes(w));
+    MEDICATION_WORDS.some((w) => s.includes(w)) ||
+    unsafeText(s); // 효과 보장·굶기 권유·약 이름까지 (공통 필터)
 }
 
 /// 금지어·투약 어휘가 들어간(또는 비어 있는) 필드는 중립 문구로 교체하고,

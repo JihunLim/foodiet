@@ -289,6 +289,7 @@ Deno.serve(async (req) => {
     mode: ctx.mode,
     glp1: ctx.glp1,
     planCount: ctx.planMeals.length,
+    target,
   });
   const DAILY_LIMIT = 5;
   const LAST_SLOT_UNLOCK_HOUR = 18;

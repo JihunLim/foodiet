@@ -6,6 +6,7 @@
 // ── 상수 ──────────────────────────────────────────────────────────────
 
 /// 체크인을 만들 최소 기록일 수. 이보다 적으면 LLM 없이 결정적 응답.
+import { unsafeText } from '../_shared/safety.ts';
 export const MIN_DAYS = 2;
 
 /// 금지 어휘 (Global Constraints). 하나라도 들어간 문장은 버린다.
@@ -14,9 +15,6 @@ export const BANNED = ['실패', '어겼다', '망쳤다', '해주세요', '나�
 /// 효과 보장("3kg 감량", "5킬로 빠져") 문구.
 const EFFICACY_RE = /\d+(?:\.\d+)?\s*(?:kg|킬로)\s*(?:감량|빠|뺄|뺀|줄)/i;
 
-/// 굶기·끼니 거르기·단식 권유. (야식은 일부러 뺐다 — "야식 건너뛰기" 는 정상 실험.)
-const STARVE_RE =
-  /굶|단식|(?:아침|점심|저녁|끼니|식사)\s*(?:를|을)?\s*(?:거르|거른|건너뛰|생략|빼|안\s*먹)/;
 
 /// LLM 실험이 3개가 안 될 때 채우는 안전한 기본 실험.
 export const DEFAULT_EXPERIMENTS: Experiment[] = [
@@ -344,8 +342,8 @@ export const RESPONSE_SCHEMA = {
 // ── 후처리 ────────────────────────────────────────────────────────────
 
 function isUnsafe(s: string): boolean {
-  return BANNED.some((b) => s.includes(b)) || EFFICACY_RE.test(s) ||
-    STARVE_RE.test(s);
+  // 공통 필터(금지어·효과 보장·굶기 권유·투약) + 체크인 전용 효과 문구.
+  return unsafeText(s) || EFFICACY_RE.test(s);
 }
 
 /// 지난 주 실험(사용자가 직접 쓴 문구일 수 있음) → 프롬프트에 넣어도 되는 형태.

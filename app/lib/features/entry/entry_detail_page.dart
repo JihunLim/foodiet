@@ -50,8 +50,10 @@ class EntryDetailPage extends ConsumerWidget {
               if (d == null) return const SizedBox.shrink();
               final entry = d.entry;
               final name = (entry.title ?? '').trim();
-              // 분석이 끝나 이름이 있는 기록만 즐겨찾기 가능.
-              final favoritable = entry.status == 'done' && name.isNotEmpty;
+              // 분석이 끝나 이름이 있고 사진이 있는 기록만 즐겨찾기 가능
+              // (즐겨찾기는 대표 사진 스냅샷을 들고 있다).
+              final favoritable =
+                  entry.status == 'done' && name.isNotEmpty && entry.hasPhoto;
               Favorite? existing;
               for (final f in favs) {
                 if (f.name == name) {

@@ -94,9 +94,15 @@ class _MealSuggestSheetState extends ConsumerState<MealSuggestSheet> {
           action: SnackBarAction(
             label: '실행취소',
             onPressed: () async {
-              await service.undo(id);
-              container.invalidate(todayEntriesProvider);
-              container.invalidate(recentEntriesProvider);
+              try {
+                await service.undo(id);
+                container.invalidate(todayEntriesProvider);
+                container.invalidate(recentEntriesProvider);
+                if (mounted) setState(() => _logged.remove(o.name));
+              } catch (_) {
+                messenger.showSnackBar(const SnackBar(
+                    content: Text('되돌리지 못했어. 기록 탭에서 지울 수 있어.')));
+              }
             },
           ),
         ));

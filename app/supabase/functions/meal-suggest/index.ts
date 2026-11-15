@@ -14,8 +14,10 @@
 // 목표 모드·GLP-1 사용 여부(medication_plans.active && coach_context 일 때만, 용량은
 // 읽지도 보내지도 않는다)를 조회해 프롬프트에 넣는다.
 //
-// 레이트리밋: 사용자당 로컬 하루 10회. coach_messages(scope='daily',
-//   body_json.kind='meal_suggest') 행 수로 집계하고, LLM 성공 시에만 1행 기록한다.
+// 레이트리밋: 사용자당 최근 24시간 10회. 서버 전용 llm_calls(kind='meal_suggest')
+//   로 집계한다 — 클라이언트가 지울 수 없고, tz_offset_min 조작으로 '오늘' 경계를
+//   옮겨도 소용없도록 롤링 창을 쓴다. LLM 호출 전에 1행을 예약하고 실패하면 지운다.
+//   집계가 실패하면 비용 보호를 위해 닫힌 쪽(503)으로 실패한다.
 //
 // ENV: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ANTHROPIC_API_KEY, ANTHROPIC_MODEL
 
@@ -161,17 +163,37 @@ Deno.serve(async (req) => {
   const todayStart = startOfTodayUtc(tzOffsetMin);
 
   // ── 레이트리밋 (LLM 호출 전) ────────────────────────────────────────
+  const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
   const { count: usedToday, error: countErr } = await admin
-    .from('coach_messages')
+    .from('llm_calls')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)
-    .eq('scope', 'daily')
-    .gte('created_at', todayStart)
-    .contains('body_json', { kind: 'meal_suggest' });
-  if (countErr) console.error('rate count failed', countErr);
+    .eq('kind', 'meal_suggest')
+    .gte('created_at', since);
+  if (countErr) {
+    console.error('rate count failed', countErr);
+    return json({ error: 'unavailable' }, 503);
+  }
   if ((usedToday ?? 0) >= DAILY_LIMIT) {
     return json({ error: 'rate_limited' }, 429);
   }
+  // 예약 — 동시 요청이 모두 같은 카운트를 보고 통과하는 걸 줄인다.
+  const { data: reserved, error: reserveErr } = await admin
+    .from('llm_calls')
+    .insert({ user_id: userId, kind: 'meal_suggest' })
+    .select('id')
+    .single();
+  if (reserveErr || !reserved) {
+    console.error('rate reserve failed', reserveErr);
+    return json({ error: 'unavailable' }, 503);
+  }
+  const releaseReservation = async () => {
+    const { error } = await admin.from('llm_calls').delete().eq(
+      'id',
+      (reserved as { id: number }).id,
+    );
+    if (error) console.error('rate release failed', error);
+  };
 
   // ── 컨텍스트 ────────────────────────────────────────────────────────
   const [profile, glp1, entriesRes] = await Promise.all([
@@ -234,15 +256,17 @@ Deno.serve(async (req) => {
       : postprocessOptions(raw, remaining);
   } catch (e) {
     console.error('claude failed', e);
+    await releaseReservation();
     return json({ error: 'llm_failed' }, 502);
   }
   if (result.kind === 'options' && result.options.length === 0) {
     // 전부 금지어 등으로 걸러졌다 → 쿼터를 쓰지 않고 실패로.
     console.error('meal-suggest: no options after postprocess');
+    await releaseReservation();
     return json({ error: 'llm_failed' }, 502);
   }
 
-  // ── 기록 (= 레이트리밋 카운트) ──────────────────────────────────────
+  // ── 기록 (분석·디버깅용 로그. 한도는 llm_calls 로 센다) ─────────────
   const { error: insertErr } = await admin.from('coach_messages').insert({
     user_id: userId,
     scope: 'daily',

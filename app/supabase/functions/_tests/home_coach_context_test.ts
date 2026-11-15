@@ -210,7 +210,7 @@ Deno.test('buildSystemPrompt: 굶기 금지·하한·GLP-1·실험 규칙 포함
   assertStringIncludes(s, '실험이 끼니 거르기·굶기·단식이거나 하루 1200 kcal 아래');
 });
 
-Deno.test('buildSignature: 날짜·주간 요약·실험·모드·GLP-1 포함', () => {
+Deno.test('buildSignature: 날짜·주간 요약·실험·모드·GLP-1·목표 포함', () => {
   const sig = buildSignature({
     base: 'd:1|k:320|c:40|p:20|f:8',
     dayKey: TODAY,
@@ -219,10 +219,11 @@ Deno.test('buildSignature: 날짜·주간 요약·실험·모드·GLP-1 포함',
     mode: 'gain',
     glp1: true,
     planCount: 2,
+    target: 1500,
   });
   assertEquals(
     sig,
-    'd:1|k:320|c:40|p:20|f:8|day:2026-11-16|w:abc|x:차 먼저|m:gain|g:1|pl:2',
+    'd:1|k:320|c:40|p:20|f:8|day:2026-11-16|w:abc|x:차 먼저|m:gain|g:1|pl:2|t:1500',
   );
   const none = buildSignature({
     base: 'b',
@@ -233,7 +234,7 @@ Deno.test('buildSignature: 날짜·주간 요약·실험·모드·GLP-1 포함',
     glp1: false,
     planCount: 0,
   });
-  assertEquals(none, 'b|day:2026-11-16|w:w|x:|m:lose|g:0|pl:0');
+  assertEquals(none, 'b|day:2026-11-16|w:w|x:|m:lose|g:0|pl:0|t:');
 });
 
 Deno.test('sanitizeResult: 금지어가 들어간 필드는 안전 문구로', () => {

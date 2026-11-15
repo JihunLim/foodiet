@@ -199,6 +199,10 @@ class _FoodietAppState extends ConsumerState<FoodietApp> {
     ref.listen(currentUserProvider, (prev, next) {
       if (next != null && prev?.id != next.id) {
         unawaited(ref.read(medicationRepoProvider).syncReminder());
+        // 로그아웃이 주간 체크인 알림(200)도 취소하므로 재로그인 때 다시 예약.
+        unawaited(ContentNotifications.instance.weeklyCheckinEnabled().then(
+            (on) => ContentNotifications.instance
+                .scheduleWeeklyCheckin(enabled: on)));
       }
     });
 
@@ -209,13 +213,10 @@ class _FoodietAppState extends ConsumerState<FoodietApp> {
         widget.fcm.init(router: router, messengerKey: _messengerKey);
         ref.read(fcmLifecycleProvider);
 
-        // 콘텐츠 로컬 알림 탭 → 라우팅. 콜드 스타트로 열렸다면 1회 소비.
+        // 콘텐츠 로컬 알림 탭 → 라우팅. 콜드 스타트로 열린 경우의 launchRoute 는
+        // SplashPage 가 '/home' 으로 보낸 뒤 소비한다(먼저 push 하면 Splash 의
+        // go('/home') 이 스택을 갈아엎어 사라진다).
         ContentNotifications.onRoute = (route) => router.push(route);
-        final launch = ContentNotifications.launchRoute;
-        if (launch != null) {
-          ContentNotifications.launchRoute = null;
-          router.push(launch);
-        }
         // 로그인 상태로 부팅 → 투약 알림(201) 재예약. 로그아웃이 cancelAll 하므로.
         if (ref.read(currentUserProvider) != null) {
           unawaited(ref.read(medicationRepoProvider).syncReminder());

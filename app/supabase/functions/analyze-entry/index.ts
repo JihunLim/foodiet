@@ -215,8 +215,13 @@ async function loadUserContext(entry: {
     }
 
     const num = (x: unknown) => (x == null ? null : Number(x));
+    // 프로필 목표가 안전 하한(남 1500 / 그 외 1200) 아래면 하한으로 올려서 전달한다.
+    const rawTarget = num(profile?.daily_kcal_target);
+    const kcalFloor = profile?.sex === 'male' ? 1500 : 1200;
     const ctx: UserContext = {
-      dailyKcalTarget: num(profile?.daily_kcal_target),
+      dailyKcalTarget: rawTarget && rawTarget > 0
+        ? Math.max(rawTarget, kcalFloor)
+        : null,
       priorKcalToday,
       mode: effectiveGoalMode(
         modeRow?.goal_mode,

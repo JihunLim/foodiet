@@ -198,7 +198,11 @@ Deno.serve(async (req) => {
 
     const userPrompt = buildUserPrompt({
       nickname: (p.nickname as string) || '친구',
-      targetKcal: toNum(p.daily_kcal_target) ?? 1800,
+      // 프로필 목표가 하한 아래여도 LLM 에는 하한 이상만 '목표'로 보낸다.
+      targetKcal: Math.max(
+        toNum(p.daily_kcal_target) ?? 1800,
+        p.sex === 'male' ? 1500 : 1200,
+      ),
       floorKcal: p.sex === 'male' ? 1500 : 1200,
       mode,
       glp1: med?.active === true && med?.coach_context !== false,

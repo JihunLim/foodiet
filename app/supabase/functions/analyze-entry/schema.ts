@@ -1,11 +1,12 @@
 // analyze-entry 응답 스키마 + 한 끼 피드백 후처리.
 //
 // index.ts 와 _tests/claude_probe.ts 가 같은 스키마·규칙을 쓰도록 여기 모은다.
-// 이 파일은 import 가 없어야 한다 (테스트가 env/네트워크 권한 없이 import).
+// 이 파일은 순수 모듈만 import 한다 (테스트가 env/네트워크 권한 없이 import).
 //
 // structured outputs 는 minimum/maximum/minItems/maxItems/minLength/maxLength 를
 // 지원하지 않는다(400). 범위는 description 으로 알리고 postProcessFeedback 에서 강제한다.
 
+import { unsafeText } from '../_shared/safety.ts';
 export const CHECK_KINDS = ['none', 'portion', 'rice', 'soup', 'sauce'] as const;
 export type CheckKind = typeof CHECK_KINDS[number];
 
@@ -184,7 +185,8 @@ const FULL_LABEL = '다 먹었어';
 const NO_CHECK = (): Feedback['check'] => ({ kind: 'none', question: '', options: [] });
 
 function hasBanned(s: string): boolean {
-  return BANNED.some((w) => s.includes(w));
+  // 금지어 + 효과 보장 + 굶기 권유 + 투약 언급 (공통 필터).
+  return unsafeText(s);
 }
 
 function clampFactor(x: unknown): number {

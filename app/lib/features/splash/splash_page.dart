@@ -17,6 +17,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/profile_provider.dart';
+import '../../services/content_notifications.dart';
 import '../../services/first_launch_flags.dart';
 import '../../theme/foodiet_tokens.dart';
 
@@ -74,7 +75,14 @@ class _SplashPageState extends ConsumerState<SplashPage>
         if (profile == null) {
           context.go('/onboarding/survey');
         } else {
-          context.go('/home');
+          final router = GoRouter.of(context);
+          router.go('/home');
+          // 알림 탭으로 콜드 스타트했다면 홈 위에 그 화면을 연다.
+          final launch = ContentNotifications.launchRoute;
+          if (launch != null) {
+            ContentNotifications.launchRoute = null;
+            router.push(launch);
+          }
         }
       });
     }

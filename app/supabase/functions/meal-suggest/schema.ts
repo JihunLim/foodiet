@@ -7,6 +7,7 @@
 // structured outputs 는 minimum/maximum/minItems/maxItems/minLength/maxLength 를
 // 지원하지 않는다(400). 개수·범위는 description 으로 안내하고 아래 후처리로 강제한다.
 
+import { unsafeText } from '../_shared/safety.ts';
 export const SITUATIONS = [
   'home',
   'convenience',
@@ -35,7 +36,8 @@ const MEDICAL_RE = /투약|주사|위고비|마운자로|오젬픽|삭센다|젭
 
 export function hasBanned(text: string): boolean {
   return BANNED.some((b) => text.includes(b)) || EFFICACY_RE.test(text) ||
-    EFFICACY_WORDS_RE.test(text) || MEDICAL_RE.test(text);
+    EFFICACY_WORDS_RE.test(text) || MEDICAL_RE.test(text) ||
+    unsafeText(text); // 굶기·끼니 거르기 권유까지 (공통 필터)
 }
 
 // ── 목표 · 모드 ─────────────────────────────────────────────────────

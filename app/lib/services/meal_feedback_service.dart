@@ -8,7 +8,6 @@
 /// items 를 원래 값으로 되돌린다(best-effort).
 library;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -95,15 +94,6 @@ Map<String, dynamic> answeredFeedbackJson(
   return j;
 }
 
-/// entry_items 에서 보정 대상 컬럼.
-const _itemCols = 'id, kcal, carb_g, protein_g, fat_g, sodium_mg, sugar_g';
-const _itemWritable = ['kcal', 'carb_g', 'protein_g', 'fat_g', 'sodium_mg', 'sugar_g'];
-
-Map<String, dynamic> _writable(Map<String, dynamic> row) => {
-      for (final k in _itemWritable)
-        if (row.containsKey(k)) k: row[k],
-    };
-
 /// 1탭 보정 저장 결과.
 enum CheckAnswerResult {
   /// 반영됨.
@@ -138,77 +128,16 @@ class MealFeedbackService {
     }
   }
 
+  /// 서버 RPC `apply_check_answer` 가 entries·entry_items 스케일과 corrections
+  /// 기록을 한 트랜잭션으로 처리한다(0017). factor 도 서버에 저장된 선택지 값을
+  /// 쓰므로 클라이언트는 고른 label 만 보낸다. 이미 답했으면 false.
   Future<CheckAnswerResult> _answer(Entry entry, MealFeedback feedback,
       FeedbackCheck check, CheckOption option) async {
-    // EntryItem 모델엔 sodium/sugar 가 없어서 원본 행을 직접 읽는다.
-    final rawItems = (await _client
-            .from('entry_items')
-            .select(_itemCols)
-            .eq('entry_id', entry.id) as List)
-        .map((r) => Map<String, dynamic>.from(r as Map))
-        .toList();
-
-    final scaled = applyCheckAnswer(
-      macros: entry.macros,
-      kcalTotal: entry.kcalTotal,
-      items: rawItems,
-      check: check,
-      option: option,
-    );
-    if (scaled == null) return CheckAnswerResult.alreadyAnswered;
-
-    // 1) entries — 아직 answered 가 없을 때만 (서버 측 중복 방지).
-    final updated = await _client
-        .from('entries')
-        .update({
-          if (!scaled.isNoop) 'kcal_total': scaled.kcalTotal,
-          if (!scaled.isNoop) 'macros': scaled.macros,
-          'feedback': answeredFeedbackJson(feedback, option),
-        })
-        .eq('id', entry.id)
-        .isFilter('feedback->check->>answered', null)
-        .select('id');
-    if ((updated as List).isEmpty) return CheckAnswerResult.alreadyAnswered;
-
-    // 2) entry_items — 하나라도 끊기면 전부 되돌린다.
-    if (!scaled.isNoop) {
-      final done = <Map<String, dynamic>>[];
-      try {
-        for (var i = 0; i < scaled.items.length; i++) {
-          final id = scaled.items[i]['id'];
-          await _client
-              .from('entry_items')
-              .update(_writable(scaled.items[i]))
-              .eq('id', id as Object);
-          done.add(rawItems[i]);
-        }
-      } catch (e) {
-        await _rollback(entry, feedback, done);
-        rethrow;
-      }
-    }
-
-    // 3) corrections — 학습 데이터. 실패해도 보정 자체는 유지.
-    try {
-      await _client.from('corrections').insert({
-        'entry_id': entry.id,
-        'user_id': entry.userId,
-        'field': 'check:${check.kind}',
-        'before_val': {
-          'kcal_total': entry.kcalTotal,
-          'macros': entry.macros,
-        },
-        'after_val': {
-          'kcal_total': scaled.kcalTotal,
-          'macros': scaled.macros,
-          'answer': option.label,
-          'kcal_factor': option.kcalFactor,
-          'sodium_factor': option.sodiumFactor,
-        },
-      });
-    } catch (e) {
-      if (kDebugMode) debugPrint('[meal-feedback] corrections insert: $e');
-    }
+    final applied = await _client.rpc('apply_check_answer', params: {
+      'p_entry_id': entry.id,
+      'p_label': option.label,
+    });
+    if (applied != true) return CheckAnswerResult.alreadyAnswered;
 
     await AppEvents.log('check_answered', {
       'kind': check.kind,
@@ -216,25 +145,5 @@ class MealFeedbackService {
       'kcal_factor': option.kcalFactor,
     });
     return CheckAnswerResult.applied;
-  }
-
-  /// best-effort 원복. 여기서 또 끊기면 값이 반쯤 바뀐 채 남을 수 있다.
-  Future<void> _rollback(Entry entry, MealFeedback feedback,
-      List<Map<String, dynamic>> itemsDone) async {
-    try {
-      for (final orig in itemsDone) {
-        await _client
-            .from('entry_items')
-            .update(_writable(orig))
-            .eq('id', orig['id'] as Object);
-      }
-      await _client.from('entries').update({
-        'kcal_total': entry.kcalTotal,
-        'macros': entry.macros,
-        'feedback': feedback.toJson(),
-      }).eq('id', entry.id);
-    } catch (e) {
-      if (kDebugMode) debugPrint('[meal-feedback] rollback: $e');
-    }
   }
 }

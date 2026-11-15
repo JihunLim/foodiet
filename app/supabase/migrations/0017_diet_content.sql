@@ -142,3 +142,106 @@ drop policy if exists app_events_own_delete on public.app_events;
 create policy app_events_own_delete on public.app_events
   for delete to authenticated
   using (user_id = auth.uid());
+
+-- ── LLM 호출 사용량 (서버 전용) ──────────────────────────────────────
+-- meal-suggest 하루 한도 집계용. RLS 만 켜고 정책을 두지 않아 클라이언트는
+-- 읽기·삭제를 못 한다(service role 만 기록). coach_messages 는 사용자가 지울 수
+-- 있어 한도를 우회할 수 있으므로 여기서 센다.
+create table if not exists public.llm_calls (
+  id          bigint generated always as identity primary key,
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  kind        text not null,
+  created_at  timestamptz not null default now()
+);
+create index if not exists llm_calls_user_kind_created_idx
+  on public.llm_calls (user_id, kind, created_at desc);
+alter table public.llm_calls enable row level security;
+
+create index if not exists app_events_user_idx on public.app_events (user_id);
+
+-- ── 1탭 보정 적용 (원자적) ──────────────────────────────────────────
+-- 한 끼 피드백의 보정 질문에 답하면 entries 합계·매크로와 entry_items 를
+-- 저장된 선택지의 factor 로 한 트랜잭션에서 스케일하고 corrections 에 남긴다.
+-- security invoker — 호출자의 RLS(own_entries 등)가 그대로 적용된다.
+-- 반환: true = 적용, false = 이미 답했거나 보정 질문이 없음.
+create or replace function public.apply_check_answer(p_entry_id uuid, p_label text)
+returns boolean
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  e   record;
+  opt jsonb;
+  kf  numeric;
+  sf  numeric;
+  new_macros jsonb;
+begin
+  select id, user_id, kcal_total, macros, feedback
+    into e
+    from public.entries
+   where id = p_entry_id and user_id = auth.uid()
+   for update;
+  if not found then
+    raise exception 'entry not found';
+  end if;
+  if e.feedback is null
+     or jsonb_typeof(e.feedback -> 'check' -> 'options') is distinct from 'array'
+     or (e.feedback -> 'check' ->> 'answered') is not null then
+    return false;
+  end if;
+
+  select o into opt
+    from jsonb_array_elements(e.feedback -> 'check' -> 'options') as o
+   where o ->> 'label' = p_label
+   limit 1;
+  if opt is null then
+    raise exception 'unknown option';
+  end if;
+
+  kf := least(greatest(coalesce((opt ->> 'kcal_factor')::numeric, 1), 0.2), 1.3);
+  sf := least(greatest(coalesce((opt ->> 'sodium_factor')::numeric, 1), 0.2), 1.3);
+
+  if e.macros is not null and jsonb_typeof(e.macros) = 'object' then
+    select coalesce(jsonb_object_agg(k,
+             case
+               when jsonb_typeof(v) <> 'number' then v
+               when k = 'sodium_mg' then to_jsonb(round((v #>> '{}')::numeric * sf))
+               when k in ('carb_g', 'protein_g', 'fat_g', 'sugar_g')
+                 then to_jsonb(round((v #>> '{}')::numeric * kf, 1))
+               else v
+             end), '{}'::jsonb)
+      into new_macros
+      from jsonb_each(e.macros) as t(k, v);
+  else
+    new_macros := e.macros;
+  end if;
+
+  update public.entries
+     set kcal_total = case when kcal_total is null then null else round(kcal_total * kf)::int end,
+         macros     = new_macros,
+         feedback   = jsonb_set(feedback, '{check,answered}', to_jsonb(p_label))
+   where id = p_entry_id;
+
+  update public.entry_items
+     set kcal      = case when kcal is null then null else round(kcal * kf)::int end,
+         carb_g    = round(carb_g * kf, 1),
+         protein_g = round(protein_g * kf, 1),
+         fat_g     = round(fat_g * kf, 1),
+         sugar_g   = round(sugar_g * kf, 1),
+         sodium_mg = case when sodium_mg is null then null else round(sodium_mg * sf)::int end
+   where entry_id = p_entry_id;
+
+  insert into public.corrections (entry_id, user_id, field, before_val, after_val)
+  values (
+    p_entry_id, e.user_id, 'check:' || coalesce(e.feedback -> 'check' ->> 'kind', 'unknown'),
+    jsonb_build_object('kcal_total', e.kcal_total, 'macros', e.macros),
+    jsonb_build_object('kcal_total', case when e.kcal_total is null then null else round(e.kcal_total * kf)::int end,
+                       'macros', new_macros, 'answer', p_label,
+                       'kcal_factor', kf, 'sodium_factor', sf)
+  );
+  return true;
+end;
+$$;
+revoke all on function public.apply_check_answer(uuid, text) from public;
+grant execute on function public.apply_check_answer(uuid, text) to authenticated;

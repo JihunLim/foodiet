@@ -321,7 +321,8 @@ InsightSummary _compute(
         foodFreq[key] = (foodFreq[key] ?? 0) + 1;
         // 대표 entry — inWindow 는 captured_at 내림차순이므로
         // 처음 만난 kcal 보유 entry 가 가장 최근 것이다.
-        if (e.kcalTotal != null && !foodRep.containsKey(key)) {
+        // 즐겨찾기는 사진 스냅샷이 필요하므로 사진 있는 기록만 대표로.
+        if (e.kcalTotal != null && e.hasPhoto && !foodRep.containsKey(key)) {
           foodRep[key] = e;
         }
       }
