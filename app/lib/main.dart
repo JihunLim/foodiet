@@ -17,9 +17,12 @@ import 'package:kakao_flutter_sdk_common/kakao_flutter_sdk_common.dart';
 import 'config/env.dart';
 import 'providers/entries_provider.dart';
 import 'providers/favorites_provider.dart';
+import 'providers/auth_provider.dart';
 import 'providers/fcm_provider.dart';
+import 'providers/medication_provider.dart';
 import 'providers/router_provider.dart';
 import 'services/ads_service.dart';
+import 'services/content_notifications.dart';
 import 'services/fcm_service.dart';
 import 'services/home_widget_service.dart';
 import 'services/meal_reminder_service.dart';
@@ -93,6 +96,14 @@ Future<void> main() async {
   unawaited(MealReminderService.instance
       .loadPrefs()
       .then((p) => MealReminderService.instance.apply(p)));
+
+  // 콘텐츠 알림(주간 체크인 200 / 투약 201). 같은 플러그인 싱글톤을 쓰므로
+  // 끼니 리마인더 init **다음에** 호출해야 탭 콜백(route:/...)이 살아남는다.
+  await ContentNotifications.instance.ensureInit();
+  unawaited(ContentNotifications.instance
+      .weeklyCheckinEnabled()
+      .then((on) =>
+          ContentNotifications.instance.scheduleWeeklyCheckin(enabled: on)));
 
   // FCM 서비스 — ProviderScope override 로 주입.
   final fcm = FcmService(
@@ -184,12 +195,31 @@ class _FoodietAppState extends ConsumerState<FoodietApp> {
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
 
+    // 다른 계정으로 로그인하면 그 계정의 투약 계획으로 알림을 다시 맞춘다.
+    ref.listen(currentUserProvider, (prev, next) {
+      if (next != null && prev?.id != next.id) {
+        unawaited(ref.read(medicationRepoProvider).syncReminder());
+      }
+    });
+
     // FCM 초기화 — 라우터가 생성된 이후 1회. auth 변화는 fcmLifecycleProvider 가 본다.
     if (!_fcmInited) {
       _fcmInited = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         widget.fcm.init(router: router, messengerKey: _messengerKey);
         ref.read(fcmLifecycleProvider);
+
+        // 콘텐츠 로컬 알림 탭 → 라우팅. 콜드 스타트로 열렸다면 1회 소비.
+        ContentNotifications.onRoute = (route) => router.push(route);
+        final launch = ContentNotifications.launchRoute;
+        if (launch != null) {
+          ContentNotifications.launchRoute = null;
+          router.push(launch);
+        }
+        // 로그인 상태로 부팅 → 투약 알림(201) 재예약. 로그아웃이 cancelAll 하므로.
+        if (ref.read(currentUserProvider) != null) {
+          unawaited(ref.read(medicationRepoProvider).syncReminder());
+        }
       });
     }
 

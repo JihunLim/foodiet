@@ -39,6 +39,21 @@ int? highlightIndexFor(List<String> slots, DateTime now) {
   return null;
 }
 
+/// [plan] 에서 오늘(로컬) 요일의 끼니. plan.weekStartDate(로컬 월요일) 기준 offset.
+/// 홈이 일→월 자정을 넘겨 지난주 plan 을 들고 있으면 offset 이 7 이 돼 빈 리스트.
+List<MealPlanMeal> todayPlanMeals(MealPlan plan, DateTime now) {
+  final ws = plan.weekStartDate;
+  final todayOffset = (DateTime(now.year, now.month, now.day)
+              .difference(DateTime(ws.year, ws.month, ws.day))
+              .inHours /
+          24)
+      .round();
+  for (final d in plan.days) {
+    if (d.dateOffset == todayOffset) return d.meals;
+  }
+  return const <MealPlanMeal>[];
+}
+
 class TodayPlanStrip extends ConsumerWidget {
   const TodayPlanStrip({super.key});
 
@@ -48,22 +63,8 @@ class TodayPlanStrip extends ConsumerWidget {
     if (plan == null) return const SizedBox.shrink();
 
     final now = DateTime.now();
-    // plan.weekStartDate(로컬 월요일) 기준 오늘의 offset. 홈이 일→월 자정을 넘겨
-    // 지난주 plan 을 들고 있으면 7 이 돼 매칭이 없고 아무것도 안 그린다.
-    final ws = plan.weekStartDate;
-    final todayOffset = (DateTime(now.year, now.month, now.day)
-                .difference(DateTime(ws.year, ws.month, ws.day))
-                .inHours /
-            24)
-        .round();
-    MealPlanDay? today;
-    for (final d in plan.days) {
-      if (d.dateOffset == todayOffset) {
-        today = d;
-        break;
-      }
-    }
-    final meals = today?.meals ?? const <MealPlanMeal>[];
+    final meals = todayPlanMeals(plan, now);
+    final dayKcal = meals.fold<int>(0, (a, m) => a + m.kcal);
     if (meals.isEmpty) return const SizedBox.shrink();
 
     final highlight = highlightIndexFor(meals.map((m) => m.slot).toList(), now);
@@ -81,8 +82,8 @@ class TodayPlanStrip extends ConsumerWidget {
                 style:
                     FoodietText.title.copyWith(color: FoodietColors.warm700)),
             const Spacer(),
-            if (today != null && today.totalKcal > 0)
-              Text('${today.totalKcal} kcal',
+            if (dayKcal > 0)
+              Text('$dayKcal kcal',
                   style: FoodietText.caption
                       .copyWith(color: FoodietColors.warm500)),
           ],

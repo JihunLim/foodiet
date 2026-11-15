@@ -17,6 +17,7 @@ import '../../providers/supabase_provider.dart';
 import '../../supabase/client.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/no_photo_tile.dart';
+import '../lessons/pending_lesson_card.dart';
 import '../../widgets/signed_network_image.dart';
 import 'meal_feedback_card.dart';
 
@@ -292,13 +293,15 @@ class _Body extends ConsumerWidget {
         const SizedBox(height: FoodietShape.sp20),
 
         // 상태 안내 (분석 중 / 실패)
-        if (entry.status == 'pending')
+        if (entry.status == 'pending') ...[
           _statusBanner(
             icon: Icons.hourglass_top_rounded,
             text: '푸디가 분석 중이야. 곧 결과가 떠!',
             color: FoodietColors.coral500,
-          )
-        else if (entry.status == 'failed')
+          ),
+          // 분석 기다리는 10~30초 — 안 읽은 2분 레슨 한 장.
+          const PendingLessonCard(),
+        ] else if (entry.status == 'failed')
           _statusBanner(
             icon: Icons.error_outline_rounded,
             text: '분석에 실패했어. 네트워크 확인 후 다시 찍어줘.',

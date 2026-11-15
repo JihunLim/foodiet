@@ -23,6 +23,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { claudeJson } from '../_shared/claude.ts';
+import { safePrevExperiment } from '../weekly-checkin/schema.ts';
 import {
   buildSignature,
   buildSystemPrompt,
@@ -516,7 +517,8 @@ async function loadCoachContext(
   return {
     todayKey,
     week: summarizeWeek(weekRows ?? [], tzOffsetMin, todayKey),
-    experiment: exp.length > 0 ? exp.slice(0, 120) : null,
+    // 사용자가 직접 입력한 실험일 수 있으므로 금지어·굶기·효과 보장 문구는 걸러낸다.
+    experiment: safePrevExperiment(exp),
     mode: effectiveMode(
       modeRow?.goal_mode,
       profile?.goal_weight_kg,

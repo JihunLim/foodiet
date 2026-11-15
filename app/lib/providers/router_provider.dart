@@ -8,6 +8,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/checkin/weekly_checkin_page.dart';
+import '../features/lessons/lesson_page.dart';
+import '../features/lessons/lessons_list_page.dart';
+import '../features/medication/medication_page.dart';
 import '../features/auth/sign_in_page.dart';
 import '../features/calendar/calendar_page.dart';
 import '../features/camera/camera_page.dart';
@@ -121,6 +125,25 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profile/nickname',
         builder: (_, __) => const NicknameEditPage(),
+      ),
+
+      // 다이어트 콘텐츠 (2026-11 확장) — 모두 top-level (카메라 FAB 에 가리지 않게).
+      GoRoute(
+        path: '/weekly-checkin',
+        builder: (_, __) => const WeeklyCheckinPage(),
+      ),
+      GoRoute(
+        path: '/lessons',
+        builder: (_, __) => const LessonsListPage(),
+      ),
+      GoRoute(
+        path: '/lesson/:slug',
+        builder: (_, state) =>
+            LessonPage(slug: state.pathParameters['slug']!),
+      ),
+      GoRoute(
+        path: '/medication',
+        builder: (_, __) => const MedicationPage(),
       ),
 
       // 커뮤니티 서브 화면들 (모두 top-level — 탭 전환과 무관하게 push).

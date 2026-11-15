@@ -26,6 +26,9 @@ import '../../widgets/ai_coach_card.dart';
 import '../../widgets/foodie_bubble.dart';
 import '../../widgets/no_photo_tile.dart';
 import '../../widgets/signed_network_image.dart';
+import '../../providers/medication_provider.dart';
+import '../suggest/meal_suggest_sheet.dart';
+import 'home_content_slot.dart';
 import 'quick_record_chips.dart';
 
 class HomeTodayPage extends ConsumerStatefulWidget {
@@ -91,14 +94,22 @@ class _HomeTodayPageState extends ConsumerState<HomeTodayPage> {
                       : '오늘 기록한 ${entries.length}장, 잘하고 있어 ✨',
                   style: FoodietText.body
                       .copyWith(color: FoodietColors.warm500)),
+              const _MedicationChip(),
               const SizedBox(height: FoodietShape.sp16),
 
               const AiCoachCard(),
 
+              // 상황에 맞는 콘텐츠 한 장 (투약일 > 주간 체크인 > 추천 식단 > 2분 읽기).
+              const HomeContentSlot(),
+
               const SizedBox(height: FoodietShape.sp16),
 
               _KcalCard(
-                  remaining: remaining, consumed: consumed, target: target),
+                remaining: remaining,
+                consumed: consumed,
+                target: target,
+                onSuggest: () => showMealSuggestSheet(context),
+              ),
 
               const SizedBox(height: FoodietShape.sp12),
 
@@ -283,10 +294,12 @@ class _KcalCard extends StatelessWidget {
     required this.remaining,
     required this.consumed,
     required this.target,
+    required this.onSuggest,
   });
   final int remaining;
   final int consumed;
   final int target;
+  final VoidCallback onSuggest;
 
   @override
   Widget build(BuildContext context) {
@@ -356,7 +369,48 @@ class _KcalCard extends StatelessWidget {
                 style: FoodietText.bodySm
                     .copyWith(color: FoodietColors.warm700)),
           ),
+          const SizedBox(height: FoodietShape.sp12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: onSuggest,
+              icon: const Text('🍽️'),
+              label: const Text('뭐 먹지? 남은 칼로리로 골라줘'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: FoodietColors.coral500,
+                side: const BorderSide(color: FoodietColors.coral100),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+/// GLP-1 투약 관리를 켠 사용자에게만 — "💉 다음 투약 D-2".
+class _MedicationChip extends ConsumerWidget {
+  const _MedicationChip();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final due = ref.watch(medicationDueProvider);
+    if (due == null || due.due == null) return const SizedBox.shrink();
+    final overdue = (due.days ?? 0) < 0;
+    return Padding(
+      padding: const EdgeInsets.only(top: FoodietShape.sp8),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: ActionChip(
+          avatar: const Text('💉'),
+          label: Text(due.isToday ? '오늘 투약 예정일' : '다음 투약 ${due.label}'),
+          onPressed: () => context.push('/medication'),
+          backgroundColor:
+              overdue || due.isToday ? FoodietColors.coral100 : FoodietColors.cream50,
+          side: const BorderSide(color: FoodietColors.cream100),
+          labelStyle: FoodietText.bodySm.copyWith(color: FoodietColors.warm900),
+        ),
       ),
     );
   }

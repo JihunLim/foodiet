@@ -21,6 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../providers/entries_provider.dart';
+import '../../providers/entry_done_notifier.dart';
 import '../../providers/profile_provider.dart';
 import '../../services/photo_upload_service.dart';
 import '../../theme/foodiet_tokens.dart';
@@ -411,6 +412,23 @@ class _HomeShellState extends ConsumerState<HomeShell>
     // 커뮤니티 탭(index 3) 에서는 가운데 카메라 FAB 를 아래로 슬라이드해서
     // 숨긴다 — 사진 기록보다 피드 보기에 집중하는 흐름.
     final isCommunityTab = widget.navigationShell.currentIndex == 3;
+
+    // 사진 분석이 앱 사용 중에 끝나면 — 피드백이 생긴 경우에만 살짝 알린다.
+    // (끼니마다 오는 서버 푸시 대신 인앱 안내. 구버전 서버라 feedback 이 없으면 조용히.)
+    ref.listen<AsyncValue<Entry>>(entryDoneNotifierProvider, (_, next) {
+      final entry = next.valueOrNull;
+      if (entry == null || entry.feedback == null || !mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text('푸디 한마디 도착 ✨ ${entry.feedback!.headline}'),
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(
+            label: '보기',
+            onPressed: () => context.push('/entry/${entry.id}'),
+          ),
+        ));
+    });
 
     return Scaffold(
       backgroundColor: FoodietColors.cream00,
