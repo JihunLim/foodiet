@@ -1,5 +1,7 @@
 # App Tracking Transparency (app_tracking_transparency) requires iOS 14.
-platform :ios, '14.0'
+# iOS 27.1 SDK(Xcode 27.1 — iPhone Duo 전체 화면 대응에 필요) 는 배포 타깃 15.0 미만을
+# 빌드 에러로 거부한다. Runner · 모든 Pod 를 15.0 으로 맞춘다.
+platform :ios, '15.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -46,6 +48,10 @@ post_install do |installer|
     # 앱 항목에도 권한 토글이 노출되지 않는다.
     # 참고: https://pub.dev/packages/permission_handler#setup
     target.build_configurations.each do |config|
+      # 오래된 Pod 들이 9.0~14.0 을 선언 → iOS 27.1 SDK 에서 에러. 15.0 미만만 올린다.
+      if config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'].to_f < 15.0
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+      end
       config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
         '$(inherited)',
         'PERMISSION_CAMERA=1',

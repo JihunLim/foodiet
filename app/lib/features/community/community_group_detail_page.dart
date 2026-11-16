@@ -12,6 +12,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/community_provider.dart';
 import '../../services/community/community_models.dart';
 import '../../services/community/community_service.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 import 'community_card.dart';
 import 'community_comments_sheet.dart';
@@ -216,47 +217,49 @@ class _MemberFeed extends ConsumerWidget {
             ref.invalidate(groupFeedProvider(groupId));
             await ref.read(groupFeedProvider(groupId).future);
           },
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-                FoodietShape.sp16, FoodietShape.sp8,
-                FoodietShape.sp16, FoodietShape.sp40),
-            children: [
-              if (group.description != null && group.description!.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(group.description!,
-                      style: FoodietText.bodySm
-                          .copyWith(color: FoodietColors.warm500)),
+          child: ReadableGutter(
+            min: FoodietShape.sp16,
+            builder: (_, gutter) => ListView(
+              padding: EdgeInsets.fromLTRB(
+                  gutter, FoodietShape.sp8, gutter, FoodietShape.sp40),
+              children: [
+                if (group.description != null && group.description!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(group.description!,
+                        style: FoodietText.bodySm
+                            .copyWith(color: FoodietColors.warm500)),
+                  ),
+                FilledButton.icon(
+                  onPressed: () => context.push('/community/share-today'),
+                  icon: const Icon(Icons.add_a_photo_outlined),
+                  label: const Text('오늘 식단 공유하기'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: FoodietColors.coral500,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(44),
+                  ),
                 ),
-              FilledButton.icon(
-                onPressed: () => context.push('/community/share-today'),
-                icon: const Icon(Icons.add_a_photo_outlined),
-                label: const Text('오늘 식단 공유하기'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: FoodietColors.coral500,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size.fromHeight(44),
-                ),
-              ),
-              const SizedBox(height: 12),
-              if (posts.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Text('아직 공유된 식단이 없어요. 첫 카드를 올려볼까?',
-                      textAlign: TextAlign.center,
-                      style: FoodietText.body
-                          .copyWith(color: FoodietColors.warm500)),
-                )
-              else
-                ...posts.map((p) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: CommunityCard(
-                        post: p,
-                        onTap: () =>
-                            CommunityCommentsSheet.show(context, p),
-                      ),
-                    )),
-            ],
+                const SizedBox(height: 12),
+                if (posts.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Text('아직 공유된 식단이 없어요. 첫 카드를 올려볼까?',
+                        textAlign: TextAlign.center,
+                        style: FoodietText.body
+                            .copyWith(color: FoodietColors.warm500)),
+                  )
+                else
+                  ...posts.map((p) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: CommunityCard(
+                          post: p,
+                          onTap: () =>
+                              CommunityCommentsSheet.show(context, p),
+                        ),
+                      )),
+              ],
+            ),
           ),
         );
       },

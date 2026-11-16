@@ -28,6 +28,7 @@ import '../../providers/profile_provider.dart';
 import '../../providers/supabase_provider.dart';
 import '../../services/kcal_calc.dart';
 import '../../services/nickname_service.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/primary_button.dart';
 
@@ -394,18 +395,20 @@ class _OnboardingSurveyPageState
                     style: FoodietText.bodySm
                         .copyWith(color: FoodietColors.danger)),
               ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  FoodietShape.sp20, FoodietShape.sp8,
-                  FoodietShape.sp20, FoodietShape.sp24),
-              child: PrimaryButton(
-                label: _step == 2
-                    ? (_submitting ? '저장 중…' : '완료')
-                    : (_step == 0
-                        ? (_submitting ? '확인 중…' : '중복확인')
-                        : '다음'),
-                onPressed:
-                    (!_canNext || _submitting) ? null : _next,
+            ReadableWidth(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    FoodietShape.sp20, FoodietShape.sp8,
+                    FoodietShape.sp20, FoodietShape.sp24),
+                child: PrimaryButton(
+                  label: _step == 2
+                      ? (_submitting ? '저장 중…' : '완료')
+                      : (_step == 0
+                          ? (_submitting ? '확인 중…' : '중복확인')
+                          : '다음'),
+                  onPressed:
+                      (!_canNext || _submitting) ? null : _next,
+                ),
               ),
             ),
           ],
@@ -452,50 +455,53 @@ class _Step1Me extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(FoodietShape.sp20),
-      children: [
-        Text('나에 대해서 🌸',
-            style: FoodietText.h2.copyWith(color: FoodietColors.warm900)),
-        const SizedBox(height: FoodietShape.sp4),
-        Text('푸디가 부를 닉네임만 정해주면 돼.',
-            style:
-                FoodietText.bodySm.copyWith(color: FoodietColors.warm500)),
-        const SizedBox(height: FoodietShape.sp24),
-        const _Label('닉네임'),
-        const SizedBox(height: 6),
-        TextField(
-          controller: nick,
-          maxLength: 16,
-          decoration: _inputDecoration('예: 후니'),
-          onChanged: (_) => onChanged(),
-        ),
-        const SizedBox(height: FoodietShape.sp16),
-        // 칼로리 계산을 더 정밀하게 하고 싶으면 마이 → 프로필 편집에서
-        // 성별·생년월일을 선택적으로 추가할 수 있다는 친절 안내.
-        Container(
-          padding: const EdgeInsets.all(FoodietShape.sp12),
-          decoration: BoxDecoration(
-            color: FoodietColors.cream50,
-            borderRadius: BorderRadius.circular(FoodietShape.radiusMd),
-            border: Border.all(color: FoodietColors.cream100),
+    return ReadableGutter(
+      builder: (_, gutter) => ListView(
+        padding: EdgeInsets.fromLTRB(
+            gutter, FoodietShape.sp20, gutter, FoodietShape.sp20),
+        children: [
+          Text('나에 대해서 🌸',
+              style: FoodietText.h2.copyWith(color: FoodietColors.warm900)),
+          const SizedBox(height: FoodietShape.sp4),
+          Text('푸디가 부를 닉네임만 정해주면 돼.',
+              style:
+                  FoodietText.bodySm.copyWith(color: FoodietColors.warm500)),
+          const SizedBox(height: FoodietShape.sp24),
+          const _Label('닉네임'),
+          const SizedBox(height: 6),
+          TextField(
+            controller: nick,
+            maxLength: 16,
+            decoration: _inputDecoration('예: 후니'),
+            onChanged: (_) => onChanged(),
           ),
-          child: Row(
-            children: [
-              const Icon(Icons.lightbulb_outline_rounded,
-                  color: FoodietColors.warm500, size: 18),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '나중에 마이 > 프로필 편집에서 성별·생년월일을 추가하면 칼로리 계산이 더 정확해져 (선택).',
-                  style: FoodietText.caption
-                      .copyWith(color: FoodietColors.warm500, height: 1.4),
+          const SizedBox(height: FoodietShape.sp16),
+          // 칼로리 계산을 더 정밀하게 하고 싶으면 마이 → 프로필 편집에서
+          // 성별·생년월일을 선택적으로 추가할 수 있다는 친절 안내.
+          Container(
+            padding: const EdgeInsets.all(FoodietShape.sp12),
+            decoration: BoxDecoration(
+              color: FoodietColors.cream50,
+              borderRadius: BorderRadius.circular(FoodietShape.radiusMd),
+              border: Border.all(color: FoodietColors.cream100),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.lightbulb_outline_rounded,
+                    color: FoodietColors.warm500, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '나중에 마이 > 프로필 편집에서 성별·생년월일을 추가하면 칼로리 계산이 더 정확해져 (선택).',
+                    style: FoodietText.caption
+                        .copyWith(color: FoodietColors.warm500, height: 1.4),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -514,40 +520,43 @@ class _Step2Now extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(FoodietShape.sp20),
-      children: [
-        Text('지금의 나 🍓',
-            style: FoodietText.h2.copyWith(color: FoodietColors.warm900)),
-        const SizedBox(height: FoodietShape.sp4),
-        Text('키와 현재 체중을 알려줘.',
-            style:
-                FoodietText.bodySm.copyWith(color: FoodietColors.warm500)),
-        const SizedBox(height: FoodietShape.sp24),
-        const _Label('키 (cm)'),
-        const SizedBox(height: 6),
-        TextField(
-          controller: height,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-          ],
-          decoration: _inputDecoration('예: 170'),
-          onChanged: (_) => onChanged(),
-        ),
-        const SizedBox(height: FoodietShape.sp16),
-        const _Label('현재 체중 (kg)'),
-        const SizedBox(height: 6),
-        TextField(
-          controller: weight,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-          ],
-          decoration: _inputDecoration('예: 62.5'),
-          onChanged: (_) => onChanged(),
-        ),
-      ],
+    return ReadableGutter(
+      builder: (_, gutter) => ListView(
+        padding: EdgeInsets.fromLTRB(
+            gutter, FoodietShape.sp20, gutter, FoodietShape.sp20),
+        children: [
+          Text('지금의 나 🍓',
+              style: FoodietText.h2.copyWith(color: FoodietColors.warm900)),
+          const SizedBox(height: FoodietShape.sp4),
+          Text('키와 현재 체중을 알려줘.',
+              style:
+                  FoodietText.bodySm.copyWith(color: FoodietColors.warm500)),
+          const SizedBox(height: FoodietShape.sp24),
+          const _Label('키 (cm)'),
+          const SizedBox(height: 6),
+          TextField(
+            controller: height,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+            ],
+            decoration: _inputDecoration('예: 170'),
+            onChanged: (_) => onChanged(),
+          ),
+          const SizedBox(height: FoodietShape.sp16),
+          const _Label('현재 체중 (kg)'),
+          const SizedBox(height: 6),
+          TextField(
+            controller: weight,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+            ],
+            decoration: _inputDecoration('예: 62.5'),
+            onChanged: (_) => onChanged(),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -580,74 +589,77 @@ class _Step3Goal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(FoodietShape.sp20),
-      children: [
-        Text('어디로 가볼까 🎯',
-            style: FoodietText.h2.copyWith(color: FoodietColors.warm900)),
-        const SizedBox(height: FoodietShape.sp4),
-        Text('목표 체중 · 기한 · 활동량으로 일일 권장량을 계산해.',
-            style:
-                FoodietText.bodySm.copyWith(color: FoodietColors.warm500)),
-        const SizedBox(height: FoodietShape.sp24),
-        const _Label('목표 체중 (kg)'),
-        const SizedBox(height: 6),
-        TextField(
-          controller: goalWeight,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-          ],
-          decoration: _inputDecoration('예: 58.0'),
-          onChanged: (_) => onChanged(),
-        ),
-        const SizedBox(height: FoodietShape.sp16),
-        const _Label('목표 기한 (선택)'),
-        const SizedBox(height: 6),
-        InkWell(
-          onTap: onDeadline,
-          borderRadius: BorderRadius.circular(FoodietShape.radiusMd),
-          child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            decoration: BoxDecoration(
-              color: FoodietColors.cream50,
-              borderRadius: BorderRadius.circular(FoodietShape.radiusMd),
-              border: Border.all(color: FoodietColors.cream100),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.flag_outlined,
-                    color: FoodietColors.warm500, size: 18),
-                const SizedBox(width: 10),
-                Text(
-                  deadline == null
-                      ? '언제까지 할래?'
-                      : '${deadline!.year}.${deadline!.month.toString().padLeft(2, '0')}'
-                          '.${deadline!.day.toString().padLeft(2, '0')}',
-                  style: FoodietText.body.copyWith(
-                    color: deadline == null
-                        ? FoodietColors.warm500
-                        : FoodietColors.warm900,
+    return ReadableGutter(
+      builder: (_, gutter) => ListView(
+        padding: EdgeInsets.fromLTRB(
+            gutter, FoodietShape.sp20, gutter, FoodietShape.sp20),
+        children: [
+          Text('어디로 가볼까 🎯',
+              style: FoodietText.h2.copyWith(color: FoodietColors.warm900)),
+          const SizedBox(height: FoodietShape.sp4),
+          Text('목표 체중 · 기한 · 활동량으로 일일 권장량을 계산해.',
+              style:
+                  FoodietText.bodySm.copyWith(color: FoodietColors.warm500)),
+          const SizedBox(height: FoodietShape.sp24),
+          const _Label('목표 체중 (kg)'),
+          const SizedBox(height: 6),
+          TextField(
+            controller: goalWeight,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+            ],
+            decoration: _inputDecoration('예: 58.0'),
+            onChanged: (_) => onChanged(),
+          ),
+          const SizedBox(height: FoodietShape.sp16),
+          const _Label('목표 기한 (선택)'),
+          const SizedBox(height: 6),
+          InkWell(
+            onTap: onDeadline,
+            borderRadius: BorderRadius.circular(FoodietShape.radiusMd),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              decoration: BoxDecoration(
+                color: FoodietColors.cream50,
+                borderRadius: BorderRadius.circular(FoodietShape.radiusMd),
+                border: Border.all(color: FoodietColors.cream100),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.flag_outlined,
+                      color: FoodietColors.warm500, size: 18),
+                  const SizedBox(width: 10),
+                  Text(
+                    deadline == null
+                        ? '언제까지 할래?'
+                        : '${deadline!.year}.${deadline!.month.toString().padLeft(2, '0')}'
+                            '.${deadline!.day.toString().padLeft(2, '0')}',
+                    style: FoodietText.body.copyWith(
+                      color: deadline == null
+                          ? FoodietColors.warm500
+                          : FoodietColors.warm900,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: FoodietShape.sp20),
-        const _Label('활동량'),
-        const SizedBox(height: 6),
-        ..._activityLabels.entries.map((e) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _ActivityTile(
-                selected: activity == e.key,
-                title: e.value.$1,
-                subtitle: e.value.$2,
-                onTap: () => onActivity(e.key),
-              ),
-            )),
-      ],
+          const SizedBox(height: FoodietShape.sp20),
+          const _Label('활동량'),
+          const SizedBox(height: 6),
+          ..._activityLabels.entries.map((e) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _ActivityTile(
+                  selected: activity == e.key,
+                  title: e.value.$1,
+                  subtitle: e.value.$2,
+                  onTap: () => onActivity(e.key),
+                ),
+              )),
+        ],
+      ),
     );
   }
 }

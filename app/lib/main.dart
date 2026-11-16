@@ -23,6 +23,7 @@ import 'providers/medication_provider.dart';
 import 'providers/router_provider.dart';
 import 'services/ads_service.dart';
 import 'services/content_notifications.dart';
+import 'services/duo_display.dart';
 import 'services/fcm_service.dart';
 import 'services/home_widget_service.dart';
 import 'services/meal_reminder_service.dart';
@@ -108,7 +109,7 @@ Future<void> main() async {
   // FCM 서비스 — ProviderScope override 로 주입.
   final fcm = FcmService(
     FoodietSupabase.client,
-    packageVersion: '2.1.0', // pubspec.yaml version 과 동기화.
+    packageVersion: '3.1.0', // pubspec.yaml version 과 동기화.
   );
 
   runApp(
@@ -194,6 +195,9 @@ class _FoodietAppState extends ConsumerState<FoodietApp> {
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
+    // iPhone Duo 힌지 상태를 앱 시작부터 구독해 둔다 — 홈 셸이 처음 뜰 때 이미
+    // 값이 있어야 하단 바 → 플로팅 메뉴로 튀지 않는다. (listen 이라 리빌드 없음)
+    ref.listen(duoDisplayProvider, (_, __) {});
 
     // 다른 계정으로 로그인하면 그 계정의 투약 계획으로 알림을 다시 맞춘다.
     ref.listen(currentUserProvider, (prev, next) {
@@ -236,29 +240,19 @@ class _FoodietAppState extends ConsumerState<FoodietApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       routerConfig: router,
-      // iPad / 큰 화면 대응 — 핸드폰 폼팩터에 맞춰 만든 레이아웃이라
-      // 넓은 화면에선 좌우가 너무 길어지는 문제가 있다. 화면 전체에
-      // 레터박스를 씌워 최대 폭 540 으로 제한하고, 양쪽은 크림 배경.
+      // 큰 화면(iPhone Duo 안쪽 디스플레이 · iPad) 은 앱 전체를 레터박스하지
+      // 않는다. 레터박스는 MediaQuery 크기/safe area 와 실제 배치 폭이 어긋나고,
+      // Duo 를 열고 닫거나 Split View 에 들어갈 때마다 레이아웃이 통째로 바뀐다.
+      // 대신 각 화면이 theme/foodiet_layout.dart 의 읽기 폭 헬퍼로 콘텐츠만
+      // 가운데 정렬하고, 배경 · 앱바 · 하단 바는 화면 끝까지 쓴다.
       builder: (context, child) {
         // 글로벌 키보드 dismiss — 입력란 외부의 빈 영역을 탭하면 키보드가
         // 자동으로 내려간다. translucent 라서 자식(TextField 등)이 hit 인
         // 곳은 자식이 그대로 처리, 빈 곳만 이 탭 콜백이 잡는다.
-        Widget wrapped = GestureDetector(
+        return GestureDetector(
           behavior: HitTestBehavior.translucent,
           onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
           child: child ?? const SizedBox(),
-        );
-
-        final width = MediaQuery.sizeOf(context).width;
-        if (width <= 600 || child == null) return wrapped;
-        return ColoredBox(
-          color: FoodietColors.cream00,
-          child: Center(
-            child: SizedBox(
-              width: 540,
-              child: wrapped,
-            ),
-          ),
         );
       },
     );

@@ -20,6 +20,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 import '../../providers/profile_provider.dart';
 import '../../providers/weight_provider.dart';
 import '../../services/weight_trend.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/science_citations_sheet.dart';
 import 'weight_log_sheet.dart';
@@ -85,102 +86,104 @@ class _WeightInsightBody extends ConsumerWidget {
     ]);
     final trendCards = WeightTrendCards(series: trend, profile: profile);
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(
-          FoodietShape.sp20, FoodietShape.sp12, FoodietShape.sp20,
-          FoodietShape.sp40),
-      children: [
-        _HeroCard(proj: proj, logs: logs, onLog: () => _openLogSheet(context)),
-        const SizedBox(height: FoodietShape.sp12),
+    return ReadableGutter(
+      builder: (_, gutter) => ListView(
+        padding: EdgeInsets.fromLTRB(gutter, FoodietShape.sp12, gutter,
+            FoodietShape.sp40 + DuoChromeInsets.scrollBottomOf(context)),
+        children: [
+          _HeroCard(proj: proj, logs: logs, onLog: () => _openLogSheet(context)),
+          const SizedBox(height: FoodietShape.sp12),
 
-        // 스파이크 / 정체기 / 목표 재계산 — 해당할 때만 (없으면 0 높이,
-        // 있으면 아래 간격까지 위젯이 포함).
-        trendCards,
+          // 스파이크 / 정체기 / 목표 재계산 — 해당할 때만 (없으면 0 높이,
+          // 있으면 아래 간격까지 위젯이 포함).
+          trendCards,
 
-        // 목표 체중 없을 때 — 차트(골라인 없이)까지 보여주고 CTA.
-        if (proj.verdict == WeightVerdict.missingGoal) ...[
-          if (logs.isNotEmpty) ...[
+          // 목표 체중 없을 때 — 차트(골라인 없이)까지 보여주고 CTA.
+          if (proj.verdict == WeightVerdict.missingGoal) ...[
+            if (logs.isNotEmpty) ...[
+              _ProjectionChartCard(proj: proj, logs: logs, trend: trend),
+              const SizedBox(height: FoodietShape.sp12),
+            ],
+            _SetupPromptCard(
+              emoji: '🎯',
+              title: '목표 체중을 설정해봐',
+              body: '목표를 알려주면 이대로 가면 도달할 수 있는지 매일 계산해줄게.',
+              cta: '프로필에서 설정',
+              onTap: () => context.push('/profile/edit'),
+            ),
+          ] else if (proj.verdict == WeightVerdict.notEnoughIntake) ...[
             _ProjectionChartCard(proj: proj, logs: logs, trend: trend),
             const SizedBox(height: FoodietShape.sp12),
-          ],
-          _SetupPromptCard(
-            emoji: '🎯',
-            title: '목표 체중을 설정해봐',
-            body: '목표를 알려주면 이대로 가면 도달할 수 있는지 매일 계산해줄게.',
-            cta: '프로필에서 설정',
-            onTap: () => context.push('/profile/edit'),
-          ),
-        ] else if (proj.verdict == WeightVerdict.notEnoughIntake) ...[
-          _ProjectionChartCard(proj: proj, logs: logs, trend: trend),
-          const SizedBox(height: FoodietShape.sp12),
-          _SetupPromptCard(
-            emoji: '📸',
-            title: '3일만 더 기록하면 예측이 시작돼',
-            body:
-                '지난 14일 중 ${proj.intakeSampleDays}일만 기록돼 있어서 추이를 뽑기 어려워.',
-            cta: '오늘 식사 기록',
-            onTap: () => context.go('/camera'),
-          ),
-        ] else if (proj.verdict == WeightVerdict.missingDeadline) ...[
-          _ProjectionChartCard(proj: proj, logs: logs, trend: trend),
-          const SizedBox(height: FoodietShape.sp12),
-          _PaceCard(proj: proj),
-          const SizedBox(height: FoodietShape.sp12),
-          _SetupPromptCard(
-            emoji: '📅',
-            title: '목표 기한도 정해보자',
-            body: '기한이 있으면 도달 확률과 "이대로 가면 언제 도달" 을 알려줄 수 있어.',
-            cta: '기한 설정',
-            onTap: () => context.push('/profile/edit'),
-          ),
-          const SizedBox(height: FoodietShape.sp12),
-          _MetricsCard(proj: proj),
-        ] else if (proj.verdict == WeightVerdict.pastDeadline) ...[
-          _ProjectionChartCard(proj: proj, logs: logs, trend: trend),
-          const SizedBox(height: FoodietShape.sp12),
-          _SetupPromptCard(
-            emoji: '⏰',
-            title: '목표 기한이 지났어',
-            body: '새 기한을 잡아서 다시 달려보자.',
-            cta: '기한 다시 설정',
-            onTap: () => context.push('/profile/edit'),
-          ),
-          const SizedBox(height: FoodietShape.sp12),
-          _MetricsCard(proj: proj),
-        ] else if (proj.verdict == WeightVerdict.atGoal) ...[
-          _ProjectionChartCard(proj: proj, logs: logs, trend: trend),
-          const SizedBox(height: FoodietShape.sp12),
-          _AtGoalCard(
-            proj: proj,
-            profile: profile,
-            weightKg: trend.isNotEmpty ? trend.last.trendKg : proj.startWeightKg,
-          ),
-          const SizedBox(height: FoodietShape.sp12),
-          _MetricsCard(proj: proj),
-        ] else ...[
-          // 메인 경로 — 예측 차트 + verdict + 메트릭.
-          _ProjectionChartCard(proj: proj, logs: logs, trend: trend),
-          const SizedBox(height: FoodietShape.sp12),
-          // 유지 모드에서는 "하루 N kcal 줄여야" 식 감량/증량 판정을 띄우지 않는다
-          // (사용자가 적자 없는 목표를 고른 상태).
-          if (profile?.isMaintainMode != true) ...[
-            _VerdictCard(proj: proj),
+            _SetupPromptCard(
+              emoji: '📸',
+              title: '3일만 더 기록하면 예측이 시작돼',
+              body:
+                  '지난 14일 중 ${proj.intakeSampleDays}일만 기록돼 있어서 추이를 뽑기 어려워.',
+              cta: '오늘 식사 기록',
+              onTap: () => context.go('/camera'),
+            ),
+          ] else if (proj.verdict == WeightVerdict.missingDeadline) ...[
+            _ProjectionChartCard(proj: proj, logs: logs, trend: trend),
             const SizedBox(height: FoodietShape.sp12),
+            _PaceCard(proj: proj),
+            const SizedBox(height: FoodietShape.sp12),
+            _SetupPromptCard(
+              emoji: '📅',
+              title: '목표 기한도 정해보자',
+              body: '기한이 있으면 도달 확률과 "이대로 가면 언제 도달" 을 알려줄 수 있어.',
+              cta: '기한 설정',
+              onTap: () => context.push('/profile/edit'),
+            ),
+            const SizedBox(height: FoodietShape.sp12),
+            _MetricsCard(proj: proj),
+          ] else if (proj.verdict == WeightVerdict.pastDeadline) ...[
+            _ProjectionChartCard(proj: proj, logs: logs, trend: trend),
+            const SizedBox(height: FoodietShape.sp12),
+            _SetupPromptCard(
+              emoji: '⏰',
+              title: '목표 기한이 지났어',
+              body: '새 기한을 잡아서 다시 달려보자.',
+              cta: '기한 다시 설정',
+              onTap: () => context.push('/profile/edit'),
+            ),
+            const SizedBox(height: FoodietShape.sp12),
+            _MetricsCard(proj: proj),
+          ] else if (proj.verdict == WeightVerdict.atGoal) ...[
+            _ProjectionChartCard(proj: proj, logs: logs, trend: trend),
+            const SizedBox(height: FoodietShape.sp12),
+            _AtGoalCard(
+              proj: proj,
+              profile: profile,
+              weightKg:
+                  trend.isNotEmpty ? trend.last.trendKg : proj.startWeightKg,
+            ),
+            const SizedBox(height: FoodietShape.sp12),
+            _MetricsCard(proj: proj),
+          ] else ...[
+            // 메인 경로 — 예측 차트 + verdict + 메트릭.
+            _ProjectionChartCard(proj: proj, logs: logs, trend: trend),
+            const SizedBox(height: FoodietShape.sp12),
+            // 유지 모드에서는 "하루 N kcal 줄여야" 식 감량/증량 판정을 띄우지 않는다
+            // (사용자가 적자 없는 목표를 고른 상태).
+            if (profile?.isMaintainMode != true) ...[
+              _VerdictCard(proj: proj),
+              const SizedBox(height: FoodietShape.sp12),
+            ],
+            _MetricsCard(proj: proj),
           ],
-          _MetricsCard(proj: proj),
-        ],
 
-        if (logs.isNotEmpty) ...[
-          const SizedBox(height: FoodietShape.sp12),
-          _RecentLogsCard(logs: logs, onTap: () => _openLogSheet(context)),
-        ],
+          if (logs.isNotEmpty) ...[
+            const SizedBox(height: FoodietShape.sp12),
+            _RecentLogsCard(logs: logs, onTap: () => _openLogSheet(context)),
+          ],
 
-        const SizedBox(height: FoodietShape.sp16),
-        _Disclaimer(),
-        // 산출 근거 / 의료 면책 — App Store guideline 1.4.1 대응.
-        const SizedBox(height: FoodietShape.sp8),
-        const ScienceCitationsLink(),
-      ],
+          const SizedBox(height: FoodietShape.sp16),
+          _Disclaimer(),
+          // 산출 근거 / 의료 면책 — App Store guideline 1.4.1 대응.
+          const SizedBox(height: FoodietShape.sp8),
+          const ScienceCitationsLink(),
+        ],
+      ),
     );
   }
 
@@ -196,47 +199,50 @@ class _WeightInsightBody extends ConsumerWidget {
 class _MissingProfileView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(FoodietShape.sp20),
-      children: [
-        const SizedBox(height: 60),
-        Container(
-          padding: const EdgeInsets.all(FoodietShape.sp24),
-          decoration: BoxDecoration(
-            color: FoodietColors.cream50,
-            borderRadius: BorderRadius.circular(FoodietShape.radiusLg),
-            border: Border.all(color: FoodietColors.cream100),
-          ),
-          child: Column(
-            children: [
-              const Text('⚖️', style: TextStyle(fontSize: 52)),
-              const SizedBox(height: FoodietShape.sp12),
-              Text('체중 변화를 예측하려면 프로필이 필요해',
-                  textAlign: TextAlign.center,
-                  style: FoodietText.title
-                      .copyWith(color: FoodietColors.warm900)),
-              const SizedBox(height: 6),
-              Text('키 · 생년월일 · 성별 · 활동량 · 현재 체중만 있으면 돼.',
-                  textAlign: TextAlign.center,
-                  style: FoodietText.bodySm
-                      .copyWith(color: FoodietColors.warm500)),
-              const SizedBox(height: FoodietShape.sp20),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                      backgroundColor: FoodietColors.coral500),
-                  onPressed: () => context.push('/profile/edit'),
-                  child: Text('프로필 설정하기',
-                      style: FoodietText.title
-                          .copyWith(color: Colors.white)),
+    return ReadableGutter(
+      builder: (_, gutter) => ListView(
+        padding: EdgeInsets.fromLTRB(
+            gutter, FoodietShape.sp20, gutter, FoodietShape.sp20),
+        children: [
+          const SizedBox(height: 60),
+          Container(
+            padding: const EdgeInsets.all(FoodietShape.sp24),
+            decoration: BoxDecoration(
+              color: FoodietColors.cream50,
+              borderRadius: BorderRadius.circular(FoodietShape.radiusLg),
+              border: Border.all(color: FoodietColors.cream100),
+            ),
+            child: Column(
+              children: [
+                const Text('⚖️', style: TextStyle(fontSize: 52)),
+                const SizedBox(height: FoodietShape.sp12),
+                Text('체중 변화를 예측하려면 프로필이 필요해',
+                    textAlign: TextAlign.center,
+                    style: FoodietText.title
+                        .copyWith(color: FoodietColors.warm900)),
+                const SizedBox(height: 6),
+                Text('키 · 생년월일 · 성별 · 활동량 · 현재 체중만 있으면 돼.',
+                    textAlign: TextAlign.center,
+                    style: FoodietText.bodySm
+                        .copyWith(color: FoodietColors.warm500)),
+                const SizedBox(height: FoodietShape.sp20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                        backgroundColor: FoodietColors.coral500),
+                    onPressed: () => context.push('/profile/edit'),
+                    child: Text('프로필 설정하기',
+                        style: FoodietText.title
+                            .copyWith(color: Colors.white)),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

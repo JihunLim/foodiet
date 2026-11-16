@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/community_provider.dart';
 import '../../services/community/community_models.dart';
 import '../../services/community/community_service.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 
 class CommunityGroupInvitePage extends ConsumerStatefulWidget {
@@ -172,24 +173,26 @@ class _CommunityGroupInvitePageState
                         ),
                       );
                     }
-                    return ListView.separated(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: FoodietShape.sp16,
-                          vertical: FoodietShape.sp8),
-                      itemCount: users.length,
-                      separatorBuilder: (_, __) => const Divider(
-                          height: 1, color: FoodietColors.cream100),
-                      itemBuilder: (_, i) {
-                        final u = users[i];
-                        final invited = _invitedUserIds.contains(u.userId);
-                        final pending = _pendingUserIds.contains(u.userId);
-                        return _UserRow(
-                          handle: u,
-                          invited: invited,
-                          pending: pending,
-                          onInvite: () => _invite(u),
-                        );
-                      },
+                    return ReadableGutter(
+                      min: FoodietShape.sp16,
+                      builder: (_, gutter) => ListView.separated(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: gutter, vertical: FoodietShape.sp8),
+                        itemCount: users.length,
+                        separatorBuilder: (_, __) => const Divider(
+                            height: 1, color: FoodietColors.cream100),
+                        itemBuilder: (_, i) {
+                          final u = users[i];
+                          final invited = _invitedUserIds.contains(u.userId);
+                          final pending = _pendingUserIds.contains(u.userId);
+                          return _UserRow(
+                            handle: u,
+                            invited: invited,
+                            pending: pending,
+                            onInvite: () => _invite(u),
+                          );
+                        },
+                      ),
                     );
                   },
                 ),

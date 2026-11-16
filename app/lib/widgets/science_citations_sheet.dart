@@ -70,6 +70,7 @@ Future<void> showScienceCitationsSheet(BuildContext context) {
     context: context,
     backgroundColor: FoodietColors.cream00,
     isScrollControlled: true,
+    useSafeArea: true, // 상태바·좌우 inset(Duo 카메라, Split View) 회피
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
         top: Radius.circular(FoodietShape.radiusLg),

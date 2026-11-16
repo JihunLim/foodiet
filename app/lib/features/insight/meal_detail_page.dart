@@ -15,6 +15,7 @@ import '../../providers/entries_provider.dart';
 import '../../services/app_events.dart';
 import '../../services/manual_entry_service.dart';
 import '../../services/meal_plan_service.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/primary_button.dart';
 import 'meal_plan_citations_sheet.dart';
@@ -109,20 +110,23 @@ class _MealDetailPageState extends ConsumerState<MealDetailPage> {
     final done = _recordedId != null;
     return SafeArea(
       top: false,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(FoodietShape.sp20, FoodietShape.sp12,
-            FoodietShape.sp20, FoodietShape.sp12),
-        decoration: const BoxDecoration(
-          color: FoodietColors.cream00,
-          border: Border(top: BorderSide(color: FoodietColors.cream100)),
-        ),
-        child: PrimaryButton(
-          label: done
-              ? '기록했어 ✓'
-              : _busy
-                  ? '기록하는 중…'
-                  : '이대로 먹었어 🍽️',
-          onPressed: (done || _busy) ? null : _logMeal,
+      // 배경 · 위 테두리는 화면 끝까지, 버튼만 본문과 같은 읽기 폭으로 (Duo 안쪽 · iPad).
+      child: ReadableGutter(
+        builder: (_, gutter) => Container(
+          padding: EdgeInsets.fromLTRB(
+              gutter, FoodietShape.sp12, gutter, FoodietShape.sp12),
+          decoration: const BoxDecoration(
+            color: FoodietColors.cream00,
+            border: Border(top: BorderSide(color: FoodietColors.cream100)),
+          ),
+          child: PrimaryButton(
+            label: done
+                ? '기록했어 ✓'
+                : _busy
+                    ? '기록하는 중…'
+                    : '이대로 먹었어 🍽️',
+            onPressed: (done || _busy) ? null : _logMeal,
+          ),
         ),
       ),
     );
@@ -146,38 +150,47 @@ class _MealDetailPageState extends ConsumerState<MealDetailPage> {
             overflow: TextOverflow.ellipsis,
             style: FoodietText.h3.copyWith(color: FoodietColors.warm900)),
       ),
-      body: ListView(
-        padding: const EdgeInsets.only(bottom: FoodietShape.sp40),
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(FoodietShape.sp20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _slotKcalRow(),
-                const SizedBox(height: FoodietShape.sp8),
-                Text(meal.name,
-                    style: FoodietText.h3.copyWith(
-                        color: FoodietColors.warm900,
-                        fontWeight: FontWeight.w700)),
-                const SizedBox(height: 4),
-                Text('탄 ${meal.carbG}g · 단 ${meal.proteinG}g · 지 ${meal.fatG}g',
-                    style: FoodietText.bodySm
-                        .copyWith(color: FoodietColors.warm500)),
-                if (meal.recipeBrief.isNotEmpty) ...[
-                  const SizedBox(height: FoodietShape.sp12),
-                  Text(meal.recipeBrief,
-                      style: FoodietText.body
-                          .copyWith(color: FoodietColors.warm700, height: 1.5)),
-                ],
-                _ingredientsSection(),
-                _stepsSection(),
-                _shoppingSection(),
-                _referencesSection(),
-              ],
-            ),
+      body: SafeArea(
+        // 섹션마다 자체 20 여백이 있어 바깥 여백은 0 부터 (넓은 화면에서만 생김).
+        child: ReadableGutter(
+          min: 0,
+          maxContent: FoodietLayout.readableMaxWidth + FoodietShape.sp20 * 2,
+          builder: (_, gutter) => ListView(
+            padding: EdgeInsets.fromLTRB(
+                gutter, 0, gutter, FoodietShape.sp40),
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(FoodietShape.sp20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _slotKcalRow(),
+                    const SizedBox(height: FoodietShape.sp8),
+                    Text(meal.name,
+                        style: FoodietText.h3.copyWith(
+                            color: FoodietColors.warm900,
+                            fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 4),
+                    Text(
+                        '탄 ${meal.carbG}g · 단 ${meal.proteinG}g · 지 ${meal.fatG}g',
+                        style: FoodietText.bodySm
+                            .copyWith(color: FoodietColors.warm500)),
+                    if (meal.recipeBrief.isNotEmpty) ...[
+                      const SizedBox(height: FoodietShape.sp12),
+                      Text(meal.recipeBrief,
+                          style: FoodietText.body.copyWith(
+                              color: FoodietColors.warm700, height: 1.5)),
+                    ],
+                    _ingredientsSection(),
+                    _stepsSection(),
+                    _shoppingSection(),
+                    _referencesSection(),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

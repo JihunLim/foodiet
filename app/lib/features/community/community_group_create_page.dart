@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import '../../providers/community_provider.dart';
 import '../../services/community/community_models.dart';
 import '../../services/community/community_service.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/primary_button.dart';
 
@@ -101,9 +102,10 @@ class _CommunityGroupCreatePageState
         behavior: HitTestBehavior.opaque,
         onTap: () => FocusScope.of(context).unfocus(),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(FoodietShape.sp20),
-            child: ListView(
+          child: ReadableGutter(
+            builder: (_, gutter) => ListView(
+              padding: EdgeInsets.fromLTRB(
+                  gutter, FoodietShape.sp20, gutter, FoodietShape.sp20),
               // 스크롤 시작하면 키보드도 함께 내려간다.
               keyboardDismissBehavior:
                   ScrollViewKeyboardDismissBehavior.onDrag,

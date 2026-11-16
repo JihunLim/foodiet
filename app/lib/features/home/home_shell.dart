@@ -23,7 +23,9 @@ import 'package:go_router/go_router.dart';
 import '../../providers/entries_provider.dart';
 import '../../providers/entry_done_notifier.dart';
 import '../../providers/profile_provider.dart';
+import '../../services/duo_display.dart';
 import '../../services/photo_upload_service.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 
 // ─── 아치 도형 파라미터 ────────────────────────────────────────────────
@@ -38,7 +40,12 @@ const double _kArcLabelFontSize = 10.0;
 const double _kArcLabelBoxW = 56.0;
 const double _kArcLabelBoxH = 48.0;
 
-enum _Side { left, right }
+/// 아치의 두 반쪽 — 카메라 / 앨범.
+enum _Side { camera, gallery }
+
+/// 아치가 피어나는 방향. 하단 바 FAB 는 위로, iPhone Duo 플로팅 메뉴는
+/// 화면 안쪽(메뉴가 오른쪽에 있으면 왼쪽)으로.
+enum _ArcFacing { up, left, right }
 
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key, required this.navigationShell});
@@ -61,6 +68,9 @@ class _HomeShellState extends ConsumerState<HomeShell>
   Offset? _dragStartGlobal;
   bool _dragActive = false;
   bool _picking = false; // image_picker 동시 실행 방지
+
+  /// 아치가 피어나는 방향 — build 에서 레이아웃(하단 바 / Duo 플로팅 메뉴)에 맞춰 갱신.
+  _ArcFacing _facing = _ArcFacing.up;
 
   @override
   void initState() {
@@ -132,7 +142,7 @@ class _HomeShellState extends ConsumerState<HomeShell>
     _hoverSide.value = null;
 
     if (chosen != null) {
-      _pick(chosen == _Side.left ? PhotoSource.camera : PhotoSource.gallery);
+      _pick(chosen == _Side.camera ? PhotoSource.camera : PhotoSource.gallery);
       return;
     }
     // 단순 탭 → 아치는 열린 채로 유지. 사용자가 반쪽을 탭하거나 scrim 을 탭할 때까지.
@@ -145,11 +155,24 @@ class _HomeShellState extends ConsumerState<HomeShell>
   }
 
   /// 드래그 벡터 방향으로 어느 쪽 반쪽을 가리키는지 판정.
+  ///
+  /// 위로 피는 아치: 왼쪽 = 카메라, 오른쪽 = 앨범.
+  /// 옆으로 피는 아치(Duo 플로팅 메뉴): 위 = 카메라, 아래 = 앨범.
   _Side? _sideForDelta(Offset delta) {
     if (delta.distance < 16) return null;
-    if (delta.dy > 20) return null; // FAB 아래로 빠짐 → 선택 아님
-    if (delta.dx.abs() < 12) return null; // 거의 수직 → dead zone
-    return delta.dx < 0 ? _Side.left : _Side.right;
+    switch (_facing) {
+      case _ArcFacing.up:
+        if (delta.dy > 20) return null; // FAB 아래로 빠짐 → 선택 아님
+        if (delta.dx.abs() < 12) return null; // 거의 수직 → dead zone
+        return delta.dx < 0 ? _Side.camera : _Side.gallery;
+      case _ArcFacing.left:
+      case _ArcFacing.right:
+        // 아치 반대쪽(화면 가장자리)으로 빠지면 선택 아님.
+        final away = _facing == _ArcFacing.left ? delta.dx > 20 : delta.dx < -20;
+        if (away) return null;
+        if (delta.dy.abs() < 12) return null; // 거의 수평 → dead zone
+        return delta.dy < 0 ? _Side.camera : _Side.gallery;
+    }
   }
 
   // ─── open / close ─────────────────────────────────────────────────────
@@ -225,6 +248,9 @@ class _HomeShellState extends ConsumerState<HomeShell>
     return s.length > 80 ? '${s.substring(0, 80)}…' : s;
   }
 
+  /// 스낵바 여백 — 하단 바 위로 띄우거나, Duo 에선 플로팅 메뉴 옆으로 비킨다.
+  EdgeInsets _snackMargin = const EdgeInsets.fromLTRB(16, 0, 16, 80);
+
   void _showSnack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
@@ -234,7 +260,7 @@ class _HomeShellState extends ConsumerState<HomeShell>
           content: Text(msg),
           duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+          margin: _snackMargin,
         ),
       );
   }
@@ -246,10 +272,19 @@ class _HomeShellState extends ConsumerState<HomeShell>
     if (fabCtx == null) return const SizedBox.shrink();
     final rb = fabCtx.findRenderObject() as RenderBox?;
     if (rb == null || !rb.attached) return const SizedBox.shrink();
-    final origin = rb.localToGlobal(Offset.zero);
+    // Positioned 좌표계는 overlay 기준. 화면 전역 좌표와 overlay 원점이 항상
+    // 같다고 가정하지 않는다 (Split View · 큰 화면에서 어긋날 수 있음).
+    final overlayBox = Overlay.of(context, rootOverlay: true)
+        .context
+        .findRenderObject() as RenderBox?;
+    final origin = rb.localToGlobal(
+      Offset.zero,
+      ancestor: overlayBox != null && overlayBox.attached ? overlayBox : null,
+    );
     final size = rb.size;
     final center =
         Offset(origin.dx + size.width / 2, origin.dy + size.height / 2);
+    final geo = _arcGeometry(center);
 
     return AnimatedBuilder(
       animation: _anim,
@@ -268,22 +303,19 @@ class _HomeShellState extends ConsumerState<HomeShell>
                 ),
               ),
             ),
-            // 반달 아치. bottomCenter 기준 scale 로 FAB 에서 피어나는 모션.
-            Positioned(
-              left: center.dx - _kArcOuterR,
-              top: center.dy - _kArcOuterR,
-              width: _kArcOuterR * 2,
-              height: _kArcOuterR,
+            // 반달 아치. FAB 쪽 가장자리 기준 scale 로 FAB 에서 피어나는 모션.
+            Positioned.fromRect(
+              rect: geo.box,
               child: IgnorePointer(
                 ignoring: t < 0.5,
                 child: Opacity(
                   opacity: t,
                   child: Transform.scale(
                     scale: 0.45 + 0.55 * raw,
-                    alignment: Alignment.bottomCenter,
+                    alignment: geo.scaleAlignment,
                     child: ValueListenableBuilder<_Side?>(
                       valueListenable: _hoverSide,
-                      builder: (_, hover, __) => _buildArc(hover),
+                      builder: (_, hover, __) => _buildArc(hover, geo),
                     ),
                   ),
                 ),
@@ -295,34 +327,86 @@ class _HomeShellState extends ConsumerState<HomeShell>
     );
   }
 
-  Widget _buildArc(_Side? hover) {
-    // 각 반쪽의 가운데 각도.
-    const leftMid = math.pi + math.pi / 4; // 5π/4 = 상-좌
-    const rightMid = 3 * math.pi / 2 + math.pi / 4; // 7π/4 = 상-우
-    const midR = (_kArcInnerR + _kArcOuterR) / 2;
-    final leftIcon = _kArcCenter +
-        Offset(midR * math.cos(leftMid), midR * math.sin(leftMid));
-    final rightIcon = _kArcCenter +
-        Offset(midR * math.cos(rightMid), midR * math.sin(rightMid));
+  /// 아치를 놓을 상자(overlay 좌표) · 상자 안 원 중심 · 두 반쪽 시작 각도.
+  ///
+  /// 캔버스 각도: 0 = 3시, π/2 = 6시, π = 9시, 3π/2 = 12시 (시계방향 +).
+  ///   - up   : 위 반원. 카메라 9→12시, 앨범 12→3시.
+  ///   - left : 왼쪽 반원. 카메라 9→12시, 앨범 6→9시.
+  ///   - right: 오른쪽 반원. 카메라 12→3시, 앨범 3→6시.
+  ({
+    Rect box,
+    Offset arcCenter,
+    double cameraStart,
+    double galleryStart,
+    Alignment scaleAlignment,
+  }) _arcGeometry(Offset c) {
+    const r = _kArcOuterR;
+    switch (_facing) {
+      case _ArcFacing.up:
+        return (
+          box: Rect.fromLTWH(c.dx - r, c.dy - r, r * 2, r),
+          arcCenter: _kArcCenter,
+          cameraStart: math.pi,
+          galleryStart: 3 * math.pi / 2,
+          scaleAlignment: Alignment.bottomCenter,
+        );
+      case _ArcFacing.left:
+        return (
+          box: Rect.fromLTWH(c.dx - r, c.dy - r, r, r * 2),
+          arcCenter: const Offset(r, r),
+          cameraStart: math.pi,
+          galleryStart: math.pi / 2,
+          scaleAlignment: Alignment.centerRight,
+        );
+      case _ArcFacing.right:
+        return (
+          box: Rect.fromLTWH(c.dx, c.dy - r, r, r * 2),
+          arcCenter: const Offset(0, r),
+          cameraStart: 3 * math.pi / 2,
+          galleryStart: 0,
+          scaleAlignment: Alignment.centerLeft,
+        );
+    }
+  }
 
-    final leftColor = hover == _Side.left
+  Widget _buildArc(
+    _Side? hover,
+    ({
+      Rect box,
+      Offset arcCenter,
+      double cameraStart,
+      double galleryStart,
+      Alignment scaleAlignment,
+    }) geo,
+  ) {
+    // 각 반쪽의 가운데 각도 · 아이콘 위치.
+    const midR = (_kArcInnerR + _kArcOuterR) / 2;
+    Offset iconAt(double start) {
+      final mid = start + math.pi / 4;
+      return geo.arcCenter + Offset(midR * math.cos(mid), midR * math.sin(mid));
+    }
+
+    final leftIcon = iconAt(geo.cameraStart);
+    final rightIcon = iconAt(geo.galleryStart);
+
+    final leftColor = hover == _Side.camera
         ? FoodietColors.coral100
         : FoodietColors.cream50;
-    final rightColor = hover == _Side.right
+    final rightColor = hover == _Side.gallery
         ? FoodietColors.coral100
         : FoodietColors.cream50;
 
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        // 왼쪽 반쪽 (카메라) — 9시→12시 도넛 조각.
+        // 카메라 반쪽 — up 이면 9시→12시 도넛 조각.
         Positioned.fill(
           child: PhysicalShape(
-            clipper: const _DonutSliceClipper(
-              arcCenter: _kArcCenter,
+            clipper: _DonutSliceClipper(
+              arcCenter: geo.arcCenter,
               innerR: _kArcInnerR,
               outerR: _kArcOuterR,
-              startAngle: math.pi,
+              startAngle: geo.cameraStart,
               sweepAngle: math.pi / 2,
             ),
             color: leftColor,
@@ -335,14 +419,14 @@ class _HomeShellState extends ConsumerState<HomeShell>
             ),
           ),
         ),
-        // 오른쪽 반쪽 (앨범) — 12시→3시 도넛 조각.
+        // 앨범 반쪽 — up 이면 12시→3시 도넛 조각.
         Positioned.fill(
           child: PhysicalShape(
-            clipper: const _DonutSliceClipper(
-              arcCenter: _kArcCenter,
+            clipper: _DonutSliceClipper(
+              arcCenter: geo.arcCenter,
               innerR: _kArcInnerR,
               outerR: _kArcOuterR,
-              startAngle: 3 * math.pi / 2,
+              startAngle: geo.galleryStart,
               sweepAngle: math.pi / 2,
             ),
             color: rightColor,
@@ -360,13 +444,13 @@ class _HomeShellState extends ConsumerState<HomeShell>
           position: leftIcon,
           icon: Icons.photo_camera_rounded,
           label: '카메라',
-          emphasized: hover == _Side.left,
+          emphasized: hover == _Side.camera,
         ),
         _centerLabel(
           position: rightIcon,
           icon: Icons.photo_library_rounded,
           label: '앨범',
-          emphasized: hover == _Side.right,
+          emphasized: hover == _Side.gallery,
         ),
       ],
     );
@@ -407,6 +491,21 @@ class _HomeShellState extends ConsumerState<HomeShell>
 
   // ─── build ────────────────────────────────────────────────────────────
 
+  /// 카메라 버튼 — 누른 채 드래그로 카메라/앨범 선택. 두 레이아웃 공용.
+  Widget _cameraButton() {
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerDown: _onPointerDown,
+      onPointerMove: _onPointerMove,
+      onPointerUp: _onPointerUp,
+      onPointerCancel: _onPointerCancel,
+      child: _GlassCameraFab(
+        fabKey: _fabKey,
+        anim: _anim,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // 커뮤니티 탭(index 3) 에서는 가운데 카메라 FAB 를 아래로 슬라이드해서
@@ -429,8 +528,19 @@ class _HomeShellState extends ConsumerState<HomeShell>
           ),
         ));
     });
+    // iPhone Duo(힌지가 있는 기기) 는 하단 바 대신 우측 하단 플로팅 메뉴.
+    final duo = ref.watch(duoDisplayProvider).valueOrNull;
+    if (duo != null && duo.hasHinge) {
+      return _buildDuo(context, duo, isCommunityTab);
+    }
+    _facing = _ArcFacing.up;
+    _snackMargin = const EdgeInsets.fromLTRB(16, 0, 16, 80);
 
     return Scaffold(
+      // 레이아웃별로 키를 달리해 전환 시 Scaffold 를 통째로 바꾼다 — 같은
+      // Scaffold 를 재사용하면 FAB 퇴장 애니메이션 동안 카메라 버튼(GlobalKey)이
+      // 두 군데에 동시에 존재하게 된다.
+      key: const ValueKey('shell-bottom-bar'),
       backgroundColor: FoodietColors.cream00,
       body: widget.navigationShell,
       floatingActionButton: IgnorePointer(
@@ -443,26 +553,24 @@ class _HomeShellState extends ConsumerState<HomeShell>
           duration: const Duration(milliseconds: 360),
           curve: Curves.easeOutCubic,
           offset: isCommunityTab ? const Offset(0, 0.5) : Offset.zero,
-          child: Listener(
-            behavior: HitTestBehavior.opaque,
-            onPointerDown: _onPointerDown,
-            onPointerMove: _onPointerMove,
-            onPointerUp: _onPointerUp,
-            onPointerCancel: _onPointerCancel,
-            child: _GlassCameraFab(
-              fabKey: _fabKey,
-              anim: _anim,
-            ),
-          ),
+          child: _cameraButton(),
         ),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButtonLocation: const SafeCenterDockedFabLocation(),
       bottomNavigationBar: BottomAppBar(
         color: FoodietColors.cream50,
         elevation: 4,
         shape: const CircularNotchedRectangle(),
         notchMargin: 8,
-        padding: EdgeInsets.zero,
+        // 바는 화면 끝까지, 탭 묶음은 읽기 폭 안으로 — 넓은 화면(Duo 안쪽
+        // 디스플레이 가로, iPad) 에서 탭이 양 끝으로 흩어지지 않게.
+        // 좌우 대칭이라 탭 사이 빈칸은 계속 FAB 중앙과 맞는다.
+        padding: EdgeInsets.symmetric(
+          horizontal: FoodietLayout.gutter(
+            MediaQuery.sizeOf(context).width,
+            min: 0,
+          ),
+        ),
         child: SizedBox(
           height: 60,
           child: Row(
@@ -507,6 +615,268 @@ class _HomeShellState extends ConsumerState<HomeShell>
       ),
     );
   }
+
+  // ─── iPhone Duo: 우측 하단 플로팅 메뉴 ───────────────────────────────────
+  //
+  // 하단 바를 없애고 [카메라 + 세로 탭 캡슐] 을 상태바 띠 아래(보통 오른쪽)에
+  // 띄운다. 본문은 띠 쪽 safe area 를 걷어내 화면 끝까지 쓰고, 앱바 액션 · 탭만
+  // 띠(상태바 · 카메라)를 비켜 간다. 띠 위치 · 크기는 기기가 알려주는 예약 영역에서.
+
+  Widget _buildDuo(
+      BuildContext context, DuoDisplayState duo, bool isCommunityTab) {
+    final mq = MediaQuery.of(context);
+    final strip = DuoStrip.from(size: mq.size, occlusions: duo.occlusions);
+    final onLeft = strip.side == DuoStripSide.left;
+    _facing = onLeft ? _ArcFacing.right : _ArcFacing.left;
+
+    // 메뉴 가로 중심: 띠가 있으면 띠 가운데, 없으면(펼친 세로 등) safe area 안쪽.
+    final stripRect = strip.rect;
+    final menuCenterX = stripRect != null
+        ? stripRect.center.dx
+        : mq.size.width - mq.padding.right - 16 - _kDuoFabSize / 2;
+    // 본문 · 스낵바가 비켜야 할 메뉴 쪽 폭.
+    final menuReserve =
+        stripRect != null ? strip.width : _kDuoFabSize + 16 * 2;
+    _snackMargin = EdgeInsets.fromLTRB(
+      16 + (onLeft ? menuReserve : 0),
+      0,
+      16 + (onLeft ? 0 : menuReserve),
+      16,
+    );
+
+    final appBarLeft = onLeft ? strip.width : 0.0;
+    final appBarRight = strip.side == DuoStripSide.right ? strip.width : 0.0;
+    final theme = Theme.of(context);
+    // 키보드가 올라오면 입력란을 가리지 않게 메뉴를 숨긴다.
+    final keyboardOpen = mq.viewInsets.bottom > 0;
+
+    return Scaffold(
+      key: const ValueKey('shell-duo'),
+      backgroundColor: FoodietColors.cream00,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: MediaQuery(
+              // 띠 쪽 inset 을 걷어내고, 아래(홈 인디케이터) inset 도 본문에선 빼서
+              // 스크롤 콘텐츠가 화면 맨 아래까지 지나가게 한다. 대신 목록 끝
+              // 여백(scrollBottom)에 메뉴 높이 + 아래 inset 을 더해 마지막 항목이
+              // 메뉴 · 인디케이터 위로 올라올 수 있게.
+              data: mq.copyWith(
+                padding: strip.bodyPadding(mq.padding).copyWith(bottom: 0),
+                viewPadding:
+                    strip.bodyPadding(mq.viewPadding).copyWith(bottom: 0),
+              ),
+              child: Theme(
+                data: theme.copyWith(
+                  appBarTheme: theme.appBarTheme.copyWith(
+                    actionsPadding:
+                        EdgeInsets.only(left: appBarLeft, right: appBarRight),
+                  ),
+                ),
+                child: DuoChromeInsets(
+                  appBarLeft: appBarLeft,
+                  appBarRight: appBarRight,
+                  scrollBottom:
+                      _kDuoMenuHeight + _kDuoMenuGap + mq.padding.bottom,
+                  child: widget.navigationShell,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: menuCenterX - _kDuoFabSize / 2,
+            width: _kDuoFabSize,
+            bottom: mq.padding.bottom + _kDuoMenuGap,
+            child: IgnorePointer(
+              ignoring: keyboardOpen,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 200),
+                opacity: keyboardOpen ? 0 : 1,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 커뮤니티 탭에선 카메라를 숨기되 자리는 유지 — 탭 위치가
+                    // 탭마다 들썩이지 않게.
+                    IgnorePointer(
+                      ignoring: isCommunityTab,
+                      child: AnimatedScale(
+                        duration: const Duration(milliseconds: 260),
+                        curve: Curves.easeOutCubic,
+                        scale: isCommunityTab ? 0.6 : 1,
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 200),
+                          opacity: isCommunityTab ? 0 : 1,
+                          child: _cameraButton(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: _kDuoMenuGap),
+                    _DuoTabPill(
+                      shell: widget.navigationShell,
+                      onTap: _go,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── iPhone Duo 플로팅 메뉴 치수 ────────────────────────────────────────
+const double _kDuoFabSize = 60; // _GlassCameraFab 크기와 같게.
+const double _kDuoMenuWidth = 56;
+const double _kDuoTabExtent = 48;
+const double _kDuoPillPadding = 6;
+const double _kDuoMenuGap = 12;
+const double _kDuoMenuHeight = _kDuoFabSize +
+    _kDuoMenuGap +
+    _kDuoTabExtent * 4 +
+    _kDuoPillPadding * 2;
+
+/// Duo 세로 탭 캡슐 — 아이콘만. 이름은 툴팁(길게 누르기) · VoiceOver 로.
+///
+/// 순서는 하단 바와 같다(위→아래 = 왼→오른): 홈 · 기록 · 인사이트 · 커뮤니티.
+class _DuoTabPill extends StatelessWidget {
+  const _DuoTabPill({required this.shell, required this.onTap});
+  final StatefulNavigationShell shell;
+  final void Function(int) onTap;
+
+  static const _tabs = [
+    (Icons.home_outlined, Icons.home_rounded, '홈'),
+    (Icons.calendar_month_outlined, Icons.calendar_month, '기록'),
+    (Icons.insights_outlined, Icons.insights, '인사이트'),
+    (Icons.groups_outlined, Icons.groups_rounded, '커뮤니티'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    const radius = BorderRadius.all(Radius.circular(_kDuoMenuWidth / 2));
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        boxShadow: [
+          BoxShadow(
+            color: FoodietColors.warm900.withValues(alpha: 0.14),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: radius,
+        // 본문이 뒤로 지나가므로 반투명 유리 — 카메라 버튼과 같은 결.
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          child: Container(
+            width: _kDuoMenuWidth,
+            padding: const EdgeInsets.symmetric(vertical: _kDuoPillPadding),
+            decoration: BoxDecoration(
+              color: FoodietColors.cream50.withValues(alpha: 0.86),
+              borderRadius: radius,
+              border: Border.all(color: FoodietColors.cream100),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < _tabs.length; i++)
+                  _DuoTabButton(
+                    icon: _tabs[i].$1,
+                    activeIcon: _tabs[i].$2,
+                    label: _tabs[i].$3,
+                    selected: shell.currentIndex == i,
+                    onTap: () => onTap(i),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DuoTabButton extends StatelessWidget {
+  const _DuoTabButton({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: label,
+      preferBelow: false,
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: label,
+        excludeSemantics: true,
+        child: InkResponse(
+          onTap: onTap,
+          radius: _kDuoTabExtent / 2,
+          child: SizedBox(
+            width: _kDuoTabExtent,
+            height: _kDuoTabExtent,
+            child: Center(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: selected ? FoodietColors.coral100 : Colors.transparent,
+                ),
+                child: Icon(
+                  selected ? activeIcon : icon,
+                  size: 22,
+                  color:
+                      selected ? FoodietColors.coral500 : FoodietColors.warm500,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// [FloatingActionButtonLocation.centerDocked] 와 같지만, 가로 중앙을
+/// 화면 전체가 아니라 **좌우 safe area 안쪽** 기준으로 잡는다.
+///
+/// BottomAppBar 는 탭 Row 를 SafeArea 로 감싸므로 FAB 자리(가운데 빈칸)는
+/// safe area 안쪽의 중앙에 생긴다. 기본 centerDocked 는 화면 정중앙에 놓기
+/// 때문에 좌우 inset 이 다르면 (iPhone Duo 바깥 디스플레이의 카메라 쪽,
+/// Split View) FAB 와 노치가 (left - right) / 2 만큼 빗나가 옆 탭을 가린다.
+class SafeCenterDockedFabLocation extends StandardFabLocation
+    with FabDockedOffsetY {
+  const SafeCenterDockedFabLocation();
+
+  @override
+  double getOffsetX(
+      ScaffoldPrelayoutGeometry scaffoldGeometry, double adjustment) {
+    return FoodietLayout.centerOffsetWithin(
+      width: scaffoldGeometry.scaffoldSize.width,
+      childWidth: scaffoldGeometry.floatingActionButtonSize.width,
+      insetLeft: scaffoldGeometry.minInsets.left,
+      insetRight: scaffoldGeometry.minInsets.right,
+    );
+  }
+
+  @override
+  String toString() => 'SafeCenterDockedFabLocation';
 }
 
 /// 도넛 조각(pie slice of annulus) Path clipper.

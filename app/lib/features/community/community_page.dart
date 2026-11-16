@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 import 'community_my_groups_view.dart';
 import 'community_explore_view.dart';
@@ -47,6 +48,11 @@ class _CommunityPageState extends ConsumerState<CommunityPage>
             style: FoodietText.h3.copyWith(color: FoodietColors.warm900)),
         bottom: TabBar(
           controller: _tab,
+          // Duo 플로팅 메뉴 모드: 상태바 띠를 비켜 간다(일반 기기는 0).
+          padding: EdgeInsets.only(
+            left: DuoChromeInsets.appBarLeftOf(context),
+            right: DuoChromeInsets.appBarRightOf(context),
+          ),
           labelColor: FoodietColors.coral500,
           unselectedLabelColor: FoodietColors.warm500,
           indicatorColor: FoodietColors.coral500,

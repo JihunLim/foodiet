@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/favorites_provider.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/signed_network_image.dart';
 
@@ -48,14 +49,17 @@ class _FavoritesManagePageState extends ConsumerState<FavoritesManagePage> {
           ),
           data: (favorites) {
             if (favorites.isEmpty) return const _EmptyFavorites();
-            return ListView.separated(
-              padding: const EdgeInsets.all(FoodietShape.sp20),
-              itemCount: favorites.length,
-              separatorBuilder: (_, __) =>
-                  const SizedBox(height: FoodietShape.sp12),
-              itemBuilder: (_, i) => _FavoriteRow(
-                favorite: favorites[i],
-                onDelete: () => _delete(favorites[i]),
+            return ReadableGutter(
+              builder: (_, gutter) => ListView.separated(
+                padding: EdgeInsets.fromLTRB(
+                    gutter, FoodietShape.sp20, gutter, FoodietShape.sp20),
+                itemCount: favorites.length,
+                separatorBuilder: (_, __) =>
+                    const SizedBox(height: FoodietShape.sp12),
+                itemBuilder: (_, i) => _FavoriteRow(
+                  favorite: favorites[i],
+                  onDelete: () => _delete(favorites[i]),
+                ),
               ),
             );
           },

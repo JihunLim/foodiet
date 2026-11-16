@@ -13,6 +13,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../providers/community_provider.dart';
 import '../../services/community/community_service.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/primary_button.dart';
 
@@ -89,46 +90,48 @@ class _CommunityGroupJoinPageState
             style: FoodietText.h3.copyWith(color: FoodietColors.warm900)),
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(FoodietShape.sp20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('그룹장이 알려준 그룹 ID 와 비밀번호를 입력해주세요.',
-                  style: FoodietText.bodySm
-                      .copyWith(color: FoodietColors.warm500)),
-              const SizedBox(height: FoodietShape.sp16),
-              const _Label('그룹 ID'),
-              TextField(
-                controller: _groupId,
-                decoration: const InputDecoration(
-                  hintText: '예: 1a2b3c4d-...',
-                ),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: FoodietShape.sp16),
-              const _Label('비밀번호 (4~8자)'),
-              TextField(
-                controller: _password,
-                maxLength: 8,
-                obscureText: true,
-                inputFormatters: [
-                  FilteringTextInputFormatter.deny(RegExp(r'\s')),
-                ],
-                onChanged: (_) => setState(() {}),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: FoodietShape.sp12),
-                Text(_error!,
+        child: ReadableWidth(
+          child: Padding(
+            padding: const EdgeInsets.all(FoodietShape.sp20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('그룹장이 알려준 그룹 ID 와 비밀번호를 입력해주세요.',
                     style: FoodietText.bodySm
-                        .copyWith(color: FoodietColors.danger)),
+                        .copyWith(color: FoodietColors.warm500)),
+                const SizedBox(height: FoodietShape.sp16),
+                const _Label('그룹 ID'),
+                TextField(
+                  controller: _groupId,
+                  decoration: const InputDecoration(
+                    hintText: '예: 1a2b3c4d-...',
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: FoodietShape.sp16),
+                const _Label('비밀번호 (4~8자)'),
+                TextField(
+                  controller: _password,
+                  maxLength: 8,
+                  obscureText: true,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.deny(RegExp(r'\s')),
+                  ],
+                  onChanged: (_) => setState(() {}),
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: FoodietShape.sp12),
+                  Text(_error!,
+                      style: FoodietText.bodySm
+                          .copyWith(color: FoodietColors.danger)),
+                ],
+                const SizedBox(height: FoodietShape.sp24),
+                PrimaryButton(
+                  label: _saving ? '참여 중…' : '참여하기',
+                  onPressed: _canJoin ? _join : null,
+                ),
               ],
-              const SizedBox(height: FoodietShape.sp24),
-              PrimaryButton(
-                label: _saving ? '참여 중…' : '참여하기',
-                onPressed: _canJoin ? _join : null,
-              ),
-            ],
+            ),
           ),
         ),
       ),

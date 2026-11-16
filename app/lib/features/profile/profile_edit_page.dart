@@ -23,6 +23,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/profile_provider.dart';
 import '../../providers/supabase_provider.dart';
 import '../../services/kcal_calc.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/primary_button.dart';
 
@@ -317,286 +318,290 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
             return Column(
               children: [
                 Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(FoodietShape.sp20,
-                        FoodietShape.sp8, FoodietShape.sp20, FoodietShape.sp24),
-                    children: [
-                      const _SectionHeader('기본 정보'),
-                      const SizedBox(height: FoodietShape.sp8),
-                      const _Label('닉네임'),
-                      const SizedBox(height: 6),
-                      TextField(
-                        controller: _nick,
-                        maxLength: 16,
-                        decoration: _inputDecoration('예: 후니'),
-                        onChanged: (_) => setState(() {}),
-                      ),
-                      const SizedBox(height: FoodietShape.sp16),
-                      const _Label('생년월일 (선택 / Optional)'),
-                      const SizedBox(height: 6),
-                      InkWell(
-                        onTap: _pickBirth,
-                        borderRadius:
-                            BorderRadius.circular(FoodietShape.radiusMd),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 14),
-                          decoration: BoxDecoration(
-                            color: FoodietColors.cream50,
-                            borderRadius: BorderRadius.circular(
-                                FoodietShape.radiusMd),
-                            border:
-                                Border.all(color: FoodietColors.cream100),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.calendar_today_rounded,
-                                  color: FoodietColors.warm500, size: 18),
-                              const SizedBox(width: 10),
-                              Text(
-                                _birth == null
-                                    ? '날짜 선택'
-                                    : '${_birth!.year}.'
-                                        '${_birth!.month.toString().padLeft(2, '0')}.'
-                                        '${_birth!.day.toString().padLeft(2, '0')}',
-                                style: FoodietText.body.copyWith(
-                                  color: _birth == null
-                                      ? FoodietColors.warm500
-                                      : FoodietColors.warm900,
-                                ),
-                              ),
-                            ],
-                          ),
+                  child: ReadableGutter(
+                    builder: (_, gutter) => ListView(
+                      padding: EdgeInsets.fromLTRB(
+                          gutter, FoodietShape.sp8, gutter, FoodietShape.sp24),
+                      children: [
+                        const _SectionHeader('기본 정보'),
+                        const SizedBox(height: FoodietShape.sp8),
+                        const _Label('닉네임'),
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: _nick,
+                          maxLength: 16,
+                          decoration: _inputDecoration('예: 후니'),
+                          onChanged: (_) => setState(() {}),
                         ),
-                      ),
-                      const SizedBox(height: FoodietShape.sp16),
-                      const _Label('성별 (선택 / Optional)'),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _SelectTile(
-                              selected: _sex == Sex.female,
-                              label: '여성',
-                              onTap: () => setState(() => _sex = Sex.female),
+                        const SizedBox(height: FoodietShape.sp16),
+                        const _Label('생년월일 (선택 / Optional)'),
+                        const SizedBox(height: 6),
+                        InkWell(
+                          onTap: _pickBirth,
+                          borderRadius:
+                              BorderRadius.circular(FoodietShape.radiusMd),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 14),
+                            decoration: BoxDecoration(
+                              color: FoodietColors.cream50,
+                              borderRadius: BorderRadius.circular(
+                                  FoodietShape.radiusMd),
+                              border:
+                                  Border.all(color: FoodietColors.cream100),
                             ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _SelectTile(
-                              selected: _sex == Sex.male,
-                              label: '남성',
-                              onTap: () => setState(() => _sex = Sex.male),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: FoodietShape.sp16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            child: Row(
                               children: [
-                                const _Label('키 (cm)'),
-                                const SizedBox(height: 6),
-                                TextField(
-                                  controller: _height,
-                                  keyboardType:
-                                      const TextInputType.numberWithOptions(
-                                          decimal: true),
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.allow(
-                                        RegExp(r'[0-9.]')),
-                                  ],
-                                  decoration: _inputDecoration('170'),
-                                  onChanged: (_) => setState(() {}),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: FoodietShape.sp12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const _Label('현재 체중 (kg)'),
-                                const SizedBox(height: 6),
-                                TextField(
-                                  controller: _weight,
-                                  keyboardType:
-                                      const TextInputType.numberWithOptions(
-                                          decimal: true),
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.allow(
-                                        RegExp(r'[0-9.]')),
-                                  ],
-                                  decoration: _inputDecoration('62.5'),
-                                  onChanged: (_) => setState(() {}),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: FoodietShape.sp24),
-
-                      const _SectionHeader('목표'),
-                      const SizedBox(height: FoodietShape.sp8),
-                      const _Label('목표 모드'),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _SelectTile(
-                              selected: !_isMaintain,
-                              label: _isGainDirection ? '증량 모드' : '감량 모드',
-                              onTap: () => _setMaintain(false),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _SelectTile(
-                              selected: _isMaintain,
-                              label: '유지 모드',
-                              onTap: () => _setMaintain(true),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        _isMaintain
-                            ? '지금 체중을 편하게 지키는 칼로리로 맞춰. '
-                                '목표 체중·기한은 계산에 쓰지 않아.'
-                            : '목표 체중과 기한으로 권장 칼로리를 계산해.',
-                        style: FoodietText.caption
-                            .copyWith(color: FoodietColors.warm500),
-                      ),
-                      const SizedBox(height: FoodietShape.sp16),
-                      const _Label('목표 체중 (kg)'),
-                      const SizedBox(height: 6),
-                      TextField(
-                        controller: _goalWeight,
-                        keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(
-                              RegExp(r'[0-9.]')),
-                        ],
-                        decoration: _inputDecoration('예: 58.0'),
-                        onChanged: (_) => setState(() {}),
-                      ),
-                      const SizedBox(height: FoodietShape.sp16),
-                      const _Label('목표 기한'),
-                      const SizedBox(height: 6),
-                      InkWell(
-                        onTap: _pickDeadline,
-                        borderRadius:
-                            BorderRadius.circular(FoodietShape.radiusMd),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 14),
-                          decoration: BoxDecoration(
-                            color: FoodietColors.cream50,
-                            borderRadius: BorderRadius.circular(
-                                FoodietShape.radiusMd),
-                            border:
-                                Border.all(color: FoodietColors.cream100),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.flag_outlined,
-                                  color: FoodietColors.warm500, size: 18),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  _goalDeadline == null
-                                      ? '기한을 정해볼까?'
-                                      : '${_goalDeadline!.year}.'
-                                          '${_goalDeadline!.month.toString().padLeft(2, '0')}.'
-                                          '${_goalDeadline!.day.toString().padLeft(2, '0')}',
+                                const Icon(Icons.calendar_today_rounded,
+                                    color: FoodietColors.warm500, size: 18),
+                                const SizedBox(width: 10),
+                                Text(
+                                  _birth == null
+                                      ? '날짜 선택'
+                                      : '${_birth!.year}.'
+                                          '${_birth!.month.toString().padLeft(2, '0')}.'
+                                          '${_birth!.day.toString().padLeft(2, '0')}',
                                   style: FoodietText.body.copyWith(
-                                    color: _goalDeadline == null
+                                    color: _birth == null
                                         ? FoodietColors.warm500
                                         : FoodietColors.warm900,
                                   ),
                                 ),
-                              ),
-                              if (_goalDeadline != null)
-                                IconButton(
-                                  icon: const Icon(Icons.close,
-                                      size: 18,
-                                      color: FoodietColors.warm500),
-                                  onPressed: _clearDeadline,
-                                ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: FoodietShape.sp16),
-                      const _Label('활동량'),
-                      const SizedBox(height: 6),
-                      ..._activityLabels.entries.map((e) => Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: _ActivityTile(
-                              selected: _activity == e.key,
-                              title: e.value.$1,
-                              subtitle: e.value.$2,
-                              onTap: () =>
-                                  setState(() => _activity = e.key),
-                            ),
-                          )),
-                      const SizedBox(height: FoodietShape.sp24),
-
-                      const _SectionHeader('일일 권장 칼로리'),
-                      const SizedBox(height: FoodietShape.sp8),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _kcal,
-                              keyboardType: TextInputType.number,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                              ],
-                              decoration: _inputDecoration('1800'),
-                              onChanged: (_) => setState(() {
-                                // 수동 편집 시 자동 계산 결과 숨김.
-                                _lastAutoCalc = null;
-                              }),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          _AutoCalcButton(
-                            enabled: _canAutoCalc,
-                            onPressed: _autoCalcKcal,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      _KcalHelperText(
-                          result: _lastAutoCalc, maintainMode: _isMaintain),
-
-                      if (_error != null) ...[
                         const SizedBox(height: FoodietShape.sp16),
-                        Text(_error!,
-                            style: FoodietText.bodySm
-                                .copyWith(color: FoodietColors.danger)),
+                        const _Label('성별 (선택 / Optional)'),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _SelectTile(
+                                selected: _sex == Sex.female,
+                                label: '여성',
+                                onTap: () => setState(() => _sex = Sex.female),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _SelectTile(
+                                selected: _sex == Sex.male,
+                                label: '남성',
+                                onTap: () => setState(() => _sex = Sex.male),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: FoodietShape.sp16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const _Label('키 (cm)'),
+                                  const SizedBox(height: 6),
+                                  TextField(
+                                    controller: _height,
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                            decimal: true),
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.allow(
+                                          RegExp(r'[0-9.]')),
+                                    ],
+                                    decoration: _inputDecoration('170'),
+                                    onChanged: (_) => setState(() {}),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: FoodietShape.sp12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const _Label('현재 체중 (kg)'),
+                                  const SizedBox(height: 6),
+                                  TextField(
+                                    controller: _weight,
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                            decimal: true),
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.allow(
+                                          RegExp(r'[0-9.]')),
+                                    ],
+                                    decoration: _inputDecoration('62.5'),
+                                    onChanged: (_) => setState(() {}),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: FoodietShape.sp24),
+
+                        const _SectionHeader('목표'),
+                        const SizedBox(height: FoodietShape.sp8),
+                        const _Label('목표 모드'),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _SelectTile(
+                                selected: !_isMaintain,
+                                label: _isGainDirection ? '증량 모드' : '감량 모드',
+                                onTap: () => _setMaintain(false),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _SelectTile(
+                                selected: _isMaintain,
+                                label: '유지 모드',
+                                onTap: () => _setMaintain(true),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _isMaintain
+                              ? '지금 체중을 편하게 지키는 칼로리로 맞춰. '
+                                  '목표 체중·기한은 계산에 쓰지 않아.'
+                              : '목표 체중과 기한으로 권장 칼로리를 계산해.',
+                          style: FoodietText.caption
+                              .copyWith(color: FoodietColors.warm500),
+                        ),
+                        const SizedBox(height: FoodietShape.sp16),
+                        const _Label('목표 체중 (kg)'),
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: _goalWeight,
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                                RegExp(r'[0-9.]')),
+                          ],
+                          decoration: _inputDecoration('예: 58.0'),
+                          onChanged: (_) => setState(() {}),
+                        ),
+                        const SizedBox(height: FoodietShape.sp16),
+                        const _Label('목표 기한'),
+                        const SizedBox(height: 6),
+                        InkWell(
+                          onTap: _pickDeadline,
+                          borderRadius:
+                              BorderRadius.circular(FoodietShape.radiusMd),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 14),
+                            decoration: BoxDecoration(
+                              color: FoodietColors.cream50,
+                              borderRadius: BorderRadius.circular(
+                                  FoodietShape.radiusMd),
+                              border:
+                                  Border.all(color: FoodietColors.cream100),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.flag_outlined,
+                                    color: FoodietColors.warm500, size: 18),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    _goalDeadline == null
+                                        ? '기한을 정해볼까?'
+                                        : '${_goalDeadline!.year}.'
+                                            '${_goalDeadline!.month.toString().padLeft(2, '0')}.'
+                                            '${_goalDeadline!.day.toString().padLeft(2, '0')}',
+                                    style: FoodietText.body.copyWith(
+                                      color: _goalDeadline == null
+                                          ? FoodietColors.warm500
+                                          : FoodietColors.warm900,
+                                    ),
+                                  ),
+                                ),
+                                if (_goalDeadline != null)
+                                  IconButton(
+                                    icon: const Icon(Icons.close,
+                                        size: 18,
+                                        color: FoodietColors.warm500),
+                                    onPressed: _clearDeadline,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: FoodietShape.sp16),
+                        const _Label('활동량'),
+                        const SizedBox(height: 6),
+                        ..._activityLabels.entries.map((e) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: _ActivityTile(
+                                selected: _activity == e.key,
+                                title: e.value.$1,
+                                subtitle: e.value.$2,
+                                onTap: () =>
+                                    setState(() => _activity = e.key),
+                              ),
+                            )),
+                        const SizedBox(height: FoodietShape.sp24),
+
+                        const _SectionHeader('일일 권장 칼로리'),
+                        const SizedBox(height: FoodietShape.sp8),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _kcal,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                ],
+                                decoration: _inputDecoration('1800'),
+                                onChanged: (_) => setState(() {
+                                  // 수동 편집 시 자동 계산 결과 숨김.
+                                  _lastAutoCalc = null;
+                                }),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            _AutoCalcButton(
+                              enabled: _canAutoCalc,
+                              onPressed: _autoCalcKcal,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        _KcalHelperText(
+                            result: _lastAutoCalc, maintainMode: _isMaintain),
+
+                        if (_error != null) ...[
+                          const SizedBox(height: FoodietShape.sp16),
+                          Text(_error!,
+                              style: FoodietText.bodySm
+                                  .copyWith(color: FoodietColors.danger)),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                      FoodietShape.sp20,
-                      FoodietShape.sp8,
-                      FoodietShape.sp20,
-                      FoodietShape.sp24),
-                  child: PrimaryButton(
-                    label: _saving ? '저장 중…' : '저장',
-                    onPressed: _canSave ? _save : null,
+                ReadableWidth(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                        FoodietShape.sp20,
+                        FoodietShape.sp8,
+                        FoodietShape.sp20,
+                        FoodietShape.sp24),
+                    child: PrimaryButton(
+                      label: _saving ? '저장 중…' : '저장',
+                      onPressed: _canSave ? _save : null,
+                    ),
                   ),
                 ),
               ],

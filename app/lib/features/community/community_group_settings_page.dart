@@ -11,6 +11,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/community_provider.dart';
 import '../../services/community/community_models.dart';
 import '../../services/community/community_service.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/primary_button.dart';
 
@@ -278,116 +279,119 @@ class _BodyState extends ConsumerState<_Body> {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(FoodietShape.sp20),
-      children: [
-        if (widget.isOwner) ...[
-          _Section('그룹 정보 (그룹장만 변경 가능)'),
-          _OwnerEdit(
-            name: _name,
-            desc: _desc,
-            emoji: _emoji,
-            onEmoji: (e) => setState(() => _emoji = e),
-            visibility: _visibility,
-            onVisibility: (v) => setState(() => _visibility = v),
-          ),
-          const SizedBox(height: FoodietShape.sp12),
-          PrimaryButton(
-            label: _saving ? '저장 중…' : '변경사항 저장',
-            onPressed: _saving ? null : _saveOwnerMeta,
-          ),
-          if (_visibility == GroupVisibility.private) ...[
-            const SizedBox(height: FoodietShape.sp8),
-            OutlinedButton.icon(
-              onPressed: _changePassword,
-              icon: const Icon(Icons.lock_outline),
-              label: const Text('비밀번호 변경'),
+    return ReadableGutter(
+      builder: (_, gutter) => ListView(
+        padding: EdgeInsets.fromLTRB(
+            gutter, FoodietShape.sp20, gutter, FoodietShape.sp20),
+        children: [
+          if (widget.isOwner) ...[
+            _Section('그룹 정보 (그룹장만 변경 가능)'),
+            _OwnerEdit(
+              name: _name,
+              desc: _desc,
+              emoji: _emoji,
+              onEmoji: (e) => setState(() => _emoji = e),
+              visibility: _visibility,
+              onVisibility: (v) => setState(() => _visibility = v),
             ),
+            const SizedBox(height: FoodietShape.sp12),
+            PrimaryButton(
+              label: _saving ? '저장 중…' : '변경사항 저장',
+              onPressed: _saving ? null : _saveOwnerMeta,
+            ),
+            if (_visibility == GroupVisibility.private) ...[
+              const SizedBox(height: FoodietShape.sp8),
+              OutlinedButton.icon(
+                onPressed: _changePassword,
+                icon: const Icon(Icons.lock_outline),
+                label: const Text('비밀번호 변경'),
+              ),
+            ],
+            const SizedBox(height: FoodietShape.sp24),
           ],
-          const SizedBox(height: FoodietShape.sp24),
-        ],
-        _Section('내 공유 설정 (이 그룹에서만 적용)'),
-        _Toggle(
-          label: '음식 사진 공유',
-          value: _showPhotos,
-          onChanged: (v) {
-            setState(() => _showPhotos = v);
-            _saveMyMembership();
-          },
-        ),
-        _Toggle(
-          label: '칼로리 공유',
-          value: _showKcal,
-          onChanged: (v) {
-            setState(() => _showKcal = v);
-            _saveMyMembership();
-          },
-        ),
-        _Toggle(
-          label: '영양소(탄단지) 공유',
-          value: _showMacros,
-          onChanged: (v) {
-            setState(() => _showMacros = v);
-            _saveMyMembership();
-          },
-        ),
-        const SizedBox(height: FoodietShape.sp16),
-        _Section('자동 공유'),
-        _Toggle(
-          label: '매일 정해진 시각에 자동 공유',
-          value: _autoShare,
-          onChanged: (v) {
-            setState(() => _autoShare = v);
-            _saveMyMembership();
-          },
-        ),
-        if (_autoShare)
-          ListTile(
-            title: const Text('공유 시각'),
-            trailing: Text(
-                '${_shareTime.hour.toString().padLeft(2, '0')}:${_shareTime.minute.toString().padLeft(2, '0')}',
-                style:
-                    FoodietText.body.copyWith(fontWeight: FontWeight.w700)),
-            onTap: () async {
-              final picked = await showTimePicker(
-                context: context,
-                initialTime: _shareTime,
-                builder: (ctx, child) => MediaQuery(
-                  data: MediaQuery.of(ctx)
-                      .copyWith(alwaysUse24HourFormat: true),
-                  child: child ?? const SizedBox(),
-                ),
-              );
-              if (picked != null) {
-                setState(() => _shareTime = picked);
-                await _saveMyMembership();
-              }
+          _Section('내 공유 설정 (이 그룹에서만 적용)'),
+          _Toggle(
+            label: '음식 사진 공유',
+            value: _showPhotos,
+            onChanged: (v) {
+              setState(() => _showPhotos = v);
+              _saveMyMembership();
             },
           ),
-        const Divider(height: 40, color: FoodietColors.cream100),
-        OutlinedButton.icon(
-          icon: const Icon(Icons.exit_to_app, color: FoodietColors.warm700),
-          label: const Text('그룹에서 나가기'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: FoodietColors.warm700,
-            minimumSize: const Size.fromHeight(44),
+          _Toggle(
+            label: '칼로리 공유',
+            value: _showKcal,
+            onChanged: (v) {
+              setState(() => _showKcal = v);
+              _saveMyMembership();
+            },
           ),
-          onPressed: _leave,
-        ),
-        if (widget.isOwner) ...[
-          const SizedBox(height: 8),
+          _Toggle(
+            label: '영양소(탄단지) 공유',
+            value: _showMacros,
+            onChanged: (v) {
+              setState(() => _showMacros = v);
+              _saveMyMembership();
+            },
+          ),
+          const SizedBox(height: FoodietShape.sp16),
+          _Section('자동 공유'),
+          _Toggle(
+            label: '매일 정해진 시각에 자동 공유',
+            value: _autoShare,
+            onChanged: (v) {
+              setState(() => _autoShare = v);
+              _saveMyMembership();
+            },
+          ),
+          if (_autoShare)
+            ListTile(
+              title: const Text('공유 시각'),
+              trailing: Text(
+                  '${_shareTime.hour.toString().padLeft(2, '0')}:${_shareTime.minute.toString().padLeft(2, '0')}',
+                  style:
+                      FoodietText.body.copyWith(fontWeight: FontWeight.w700)),
+              onTap: () async {
+                final picked = await showTimePicker(
+                  context: context,
+                  initialTime: _shareTime,
+                  builder: (ctx, child) => MediaQuery(
+                    data: MediaQuery.of(ctx)
+                        .copyWith(alwaysUse24HourFormat: true),
+                    child: child ?? const SizedBox(),
+                  ),
+                );
+                if (picked != null) {
+                  setState(() => _shareTime = picked);
+                  await _saveMyMembership();
+                }
+              },
+            ),
+          const Divider(height: 40, color: FoodietColors.cream100),
           OutlinedButton.icon(
-            icon: const Icon(Icons.delete_outline,
-                color: FoodietColors.danger),
-            label: const Text('그룹 삭제'),
+            icon: const Icon(Icons.exit_to_app, color: FoodietColors.warm700),
+            label: const Text('그룹에서 나가기'),
             style: OutlinedButton.styleFrom(
-              foregroundColor: FoodietColors.danger,
+              foregroundColor: FoodietColors.warm700,
               minimumSize: const Size.fromHeight(44),
             ),
-            onPressed: _archive,
+            onPressed: _leave,
           ),
+          if (widget.isOwner) ...[
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.delete_outline,
+                  color: FoodietColors.danger),
+              label: const Text('그룹 삭제'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: FoodietColors.danger,
+                minimumSize: const Size.fromHeight(44),
+              ),
+              onPressed: _archive,
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }

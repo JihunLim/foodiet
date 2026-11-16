@@ -16,6 +16,7 @@ import 'package:intl/intl.dart';
 
 import '../../providers/entries_provider.dart';
 import '../../services/daily_share_service.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/no_photo_tile.dart';
 import '../../widgets/signed_network_image.dart';
@@ -72,12 +73,14 @@ class CalendarPage extends ConsumerWidget {
                 );
               }
               final groups = _groupByDay(entries);
-              return ListView.builder(
-                padding: const EdgeInsets.fromLTRB(
-                    FoodietShape.sp20, 0, FoodietShape.sp20, FoodietShape.sp40),
-                itemCount: groups.length,
-                itemBuilder: (_, i) =>
-                    _DaySection(date: groups[i].date, entries: groups[i].items),
+              return ReadableGutter(
+                builder: (_, gutter) => ListView.builder(
+                  padding: EdgeInsets.fromLTRB(gutter, 0, gutter,
+                      FoodietShape.sp40 + DuoChromeInsets.scrollBottomOf(context)),
+                  itemCount: groups.length,
+                  itemBuilder: (_, i) => _DaySection(
+                      date: groups[i].date, entries: groups[i].items),
+                ),
               );
             },
           ),

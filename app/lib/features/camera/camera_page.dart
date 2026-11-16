@@ -20,6 +20,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../providers/entries_provider.dart';
 import '../../services/photo_upload_service.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 
 class CameraPage extends ConsumerStatefulWidget {
@@ -118,7 +119,10 @@ class _CameraPageState extends ConsumerState<CameraPage> {
         ),
       ),
       body: SafeArea(
-        child: file == null ? _buildChooser() : _buildPreview(file),
+        // 선택 캡슐은 넓은 화면(Duo 안쪽 가로 · iPad) 에서 양 끝까지 늘어나지 않게.
+        child: file == null
+            ? ReadableWidth(child: _buildChooser())
+            : _buildPreview(file),
       ),
     );
   }

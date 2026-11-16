@@ -17,6 +17,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 import '../../providers/entries_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/insight_provider.dart';
+import '../../theme/foodiet_layout.dart';
 import '../../theme/foodiet_tokens.dart';
 import '../../widgets/native_ad_card.dart';
 import '../../widgets/science_citations_sheet.dart';
@@ -41,8 +42,12 @@ class InsightPage extends ConsumerWidget {
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(44),
             child: Container(
-              margin: const EdgeInsets.fromLTRB(
-                  FoodietShape.sp20, 0, FoodietShape.sp20, FoodietShape.sp8),
+              // Duo 플로팅 메뉴 모드: 상태바 띠를 비켜 간다(일반 기기는 0).
+              margin: EdgeInsets.fromLTRB(
+                  FoodietShape.sp20 + DuoChromeInsets.appBarLeftOf(context),
+                  0,
+                  FoodietShape.sp20 + DuoChromeInsets.appBarRightOf(context),
+                  FoodietShape.sp8),
               decoration: BoxDecoration(
                 color: FoodietColors.cream50,
                 borderRadius: BorderRadius.circular(FoodietShape.radiusMd),
@@ -117,47 +122,49 @@ class _NutritionTab extends ConsumerWidget {
             ),
           ],
         ),
-        data: (s) => ListView(
-          padding: const EdgeInsets.fromLTRB(FoodietShape.sp20, 0,
-              FoodietShape.sp20, FoodietShape.sp40),
-          children: [
-            _WindowToggle(current: window),
-            const SizedBox(height: FoodietShape.sp16),
-            if (s.recordDays == 0) ...[
-              const _EmptyInsight(),
-              const SizedBox(height: FoodietShape.sp24),
-              const _LessonsLink(),
-            ] else ...[
-              _HeroCard(summary: s),
-              const SizedBox(height: FoodietShape.sp12),
-              _CoachCard(summary: s),
-              const SizedBox(height: FoodietShape.sp12),
-              PatternCard(summary: s),
-              // AdMob 네이티브 광고 #1 (인사이트 상단).
-              const SizedBox(height: FoodietShape.sp12),
-              const NativeAdCard(key: ValueKey('insight-ad-top')),
-              const SizedBox(height: FoodietShape.sp12),
-              _CalorieChartCard(summary: s),
-              const SizedBox(height: FoodietShape.sp12),
-              _GoalBreakdownCard(summary: s),
-              const SizedBox(height: FoodietShape.sp12),
-              _MealSlotCard(summary: s),
-              const SizedBox(height: FoodietShape.sp12),
-              _MacroCard(summary: s),
-              if (s.topFoods.isNotEmpty) ...[
-                // AdMob 네이티브 광고 #2 (자주 먹은 음식 카드 위).
+        data: (s) => ReadableGutter(
+          builder: (_, gutter) => ListView(
+            padding: EdgeInsets.fromLTRB(gutter, 0, gutter,
+                FoodietShape.sp40 + DuoChromeInsets.scrollBottomOf(context)),
+            children: [
+              _WindowToggle(current: window),
+              const SizedBox(height: FoodietShape.sp16),
+              if (s.recordDays == 0) ...[
+                const _EmptyInsight(),
+                const SizedBox(height: FoodietShape.sp24),
+                const _LessonsLink(),
+              ] else ...[
+                _HeroCard(summary: s),
                 const SizedBox(height: FoodietShape.sp12),
-                const NativeAdCard(key: ValueKey('insight-ad-bottom')),
+                _CoachCard(summary: s),
                 const SizedBox(height: FoodietShape.sp12),
-                _TopFoodsCard(summary: s),
+                PatternCard(summary: s),
+                // AdMob 네이티브 광고 #1 (인사이트 상단).
+                const SizedBox(height: FoodietShape.sp12),
+                const NativeAdCard(key: ValueKey('insight-ad-top')),
+                const SizedBox(height: FoodietShape.sp12),
+                _CalorieChartCard(summary: s),
+                const SizedBox(height: FoodietShape.sp12),
+                _GoalBreakdownCard(summary: s),
+                const SizedBox(height: FoodietShape.sp12),
+                _MealSlotCard(summary: s),
+                const SizedBox(height: FoodietShape.sp12),
+                _MacroCard(summary: s),
+                if (s.topFoods.isNotEmpty) ...[
+                  // AdMob 네이티브 광고 #2 (자주 먹은 음식 카드 위).
+                  const SizedBox(height: FoodietShape.sp12),
+                  const NativeAdCard(key: ValueKey('insight-ad-bottom')),
+                  const SizedBox(height: FoodietShape.sp12),
+                  _TopFoodsCard(summary: s),
+                ],
+                const SizedBox(height: FoodietShape.sp24),
+                const _LessonsLink(),
+                // 산출 근거 / 의료 면책 — App Store guideline 1.4.1 대응.
+                const SizedBox(height: FoodietShape.sp8),
+                const ScienceCitationsLink(),
               ],
-              const SizedBox(height: FoodietShape.sp24),
-              const _LessonsLink(),
-              // 산출 근거 / 의료 면책 — App Store guideline 1.4.1 대응.
-              const SizedBox(height: FoodietShape.sp8),
-              const ScienceCitationsLink(),
             ],
-          ],
+          ),
         ),
       ),
     );
