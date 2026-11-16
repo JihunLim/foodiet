@@ -227,6 +227,6 @@
 - 라우트: `/weekly-checkin`, `/lessons`, `/lesson/:slug`, `/medication`.
 - main.dart: `ContentNotifications.instance.ensureInit()` + 부팅 시 주간 체크인 예약 + 알림 탭 payload `route:` 처리(기존 로컬 알림 탭 처리 방식에 맞춤).
 - 홈: 인사말 아래 투약 칩(활성일 때만), AiCoachCard 아래 `HomeContentSlot`(우선순위: 투약 당일 > 체크인 프롬프트 > TodayPlanStrip(식단 있을 때) > LessonCard), kcal 카드에 "뭐 먹지?" 버튼 → MealSuggestSheet(상황 칩 → 결과 → "먹었어" = ManualEntryService.record(source 'suggestion'); hoesik 은 가이드만; 429 → "오늘은 여기까지 물어볼 수 있어").
-- home_shell: `entryDoneNotifierProvider` 구독 → 스낵바 "푸디 한마디 도착 ✨ [보기]".
+- home_shell: `entryDoneNotifierProvider` 구독 → 스낵바 "푸디의 조언 도착 ✨ [보기]".
 - [ ] `flutter analyze` 0 error/warning(신규), `flutter test` 전체 PASS, 모든 함수 `deno check` PASS → commit `feat(home): 콘텐츠 슬롯·뭐 먹지·라우트·알림 연결`.
 - [ ] 최종: 브랜치 전체 리뷰 → 수정 → 운영 반영 승인 요청(마이그레이션 0017·0018 → 함수 analyze-entry, home-coach, meal-suggest, weekly-checkin 배포 → 앱 빌드).

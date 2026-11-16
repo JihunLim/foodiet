@@ -421,7 +421,7 @@ class _HomeShellState extends ConsumerState<HomeShell>
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(
-          content: Text('푸디 한마디 도착 ✨ ${entry.feedback!.headline}'),
+          content: Text('푸디의 조언 도착 ✨ ${entry.feedback!.headline}'),
           duration: const Duration(seconds: 5),
           action: SnackBarAction(
             label: '보기',

@@ -45,7 +45,7 @@ foodiet 는 "먹은 뒤 사진 기록"은 강하지만 ① 먹기 전 판단("�
 - `entries.feedback jsonb` 저장. 피드백 파싱 실패 → feedback 없이 done (구버전 호환).
 - 기존 저신뢰/경계시간 `coach_messages(in_meal)` INSERT 는 유지(무해).
 - 앱: 기록 상세 kcal 카드 아래 `FoodieBubble` (headline/good/next). `check.kind != none` 이고 아직 답 안 했으면 질문 + 옵션 칩. 탭 시: entry `kcal_total`·`macros`(sodium 은 sodium_factor, 나머지 kcal_factor) 와 각 `entry_items` 의 kcal/탄단지(kcal_factor)·sodium(sodium_factor) 를 스케일, `corrections` 에 before/after 기록, `feedback.check.answered = label` 저장. 한 번만 적용(재탭 불가, 수정은 기존 시트).
-- 앱 사용 중 pending → done 전환 감지 시 스낵바 "푸디 한마디 도착 ✨ [보기]" → /entry/:id.
+- 앱 사용 중 pending → done 전환 감지 시 스낵바 "푸디의 조언 도착 ✨ [보기]" → /entry/:id.
 
 ### F2. 식단추천 ↔ 홈·기록 (추천 2번)
 - 홈 콘텐츠 슬롯(F-Home 참조)에 "오늘의 추천" 칩 행: 이번 주 식단 중 오늘(date_offset = 월0) 끼니, 다음 끼니 강조. 탭 → 기존 MealDetailPage.
