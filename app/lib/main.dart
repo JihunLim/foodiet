@@ -108,7 +108,7 @@ Future<void> main() async {
   // FCM 서비스 — ProviderScope override 로 주입.
   final fcm = FcmService(
     FoodietSupabase.client,
-    packageVersion: '1.0.0', // pubspec.yaml version 과 동기화.
+    packageVersion: '2.1.0', // pubspec.yaml version 과 동기화.
   );
 
   runApp(
